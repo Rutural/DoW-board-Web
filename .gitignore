@@ -1,0 +1,10 @@
+node_modules/
+saves/
+.DS_Store
+datasets/
+tests/e2e/shots/
+__pycache__/
+store/
+.venv/
+.pytest_cache/
+*.pyc

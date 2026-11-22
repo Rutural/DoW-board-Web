@@ -1,0 +1,596 @@
+{
+"start": [
+{
+"t": "fuel",
+"img": "assets/items/start_001.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/start_001.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/start_001.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/start_001.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/start_001.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/start_002.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/start_002.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/start_002.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/start_002.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/start_002.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/start_004.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/start_004.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/start_004.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/start_004.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/start_004.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/start_005.jpg"
+}
+],
+"police": [
+{
+"t": "food1",
+"img": "assets/items/police_001.jpg"
+},
+{
+"t": "colt",
+"img": "assets/items/police_002.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/police_003.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/police_004.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/police_005.jpg"
+},
+{
+"t": "padlock",
+"img": "assets/items/police_006.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/police_007.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/police_008.jpg"
+},
+{
+"t": "colt",
+"img": "assets/items/police_009.jpg"
+},
+{
+"t": "out1",
+"img": "assets/items/police_010.jpg"
+},
+{
+"t": "tikka",
+"img": "assets/items/police_011.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/police_012.jpg"
+},
+{
+"t": "tikka",
+"img": "assets/items/police_013.jpg"
+},
+{
+"t": "shotgun",
+"img": "assets/items/police_014.jpg"
+},
+{
+"t": "nvg",
+"img": "assets/items/police_015.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/police_016.jpg"
+},
+{
+"t": "colt",
+"img": "assets/items/police_017.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/police_018.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/police_019.jpg"
+},
+{
+"t": "walkie",
+"img": "assets/items/police_020.jpg"
+}
+],
+"grocery": [
+{
+"t": "food2",
+"img": "assets/items/grocery_001.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_002.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_003.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_004.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/grocery_005.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/grocery_006.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/grocery_007.jpg"
+},
+{
+"t": "food3",
+"img": "assets/items/grocery_008.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/grocery_009.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_010.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/grocery_011.jpg"
+},
+{
+"t": "flesh",
+"img": "assets/items/grocery_012.jpg"
+},
+{
+"t": "snowshoes",
+"img": "assets/items/grocery_013.jpg"
+},
+{
+"t": "hammer",
+"img": "assets/items/grocery_014.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_015.jpg"
+},
+{
+"t": "wrench",
+"img": "assets/items/grocery_016.jpg"
+},
+{
+"t": "food3",
+"img": "assets/items/grocery_017.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/grocery_018.jpg"
+},
+{
+"t": "out1",
+"img": "assets/items/grocery_019.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/grocery_020.jpg"
+}
+],
+"school": [
+{
+"t": "out3",
+"img": "assets/items/school_001.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/school_002.jpg"
+},
+{
+"t": "scissors",
+"img": "assets/items/school_003.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/school_004.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/school_005.jpg"
+},
+{
+"t": "megaphone",
+"img": "assets/items/school_006.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/school_007.jpg"
+},
+{
+"t": "bat",
+"img": "assets/items/school_008.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/school_009.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/school_010.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/school_011.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/school_012.jpg"
+},
+{
+"t": "leadership",
+"img": "assets/items/school_013.jpg"
+},
+{
+"t": "martial",
+"img": "assets/items/school_014.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/school_015.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/school_016.jpg"
+},
+{
+"t": "barr123",
+"img": "assets/items/school_017.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/school_018.jpg"
+},
+{
+"t": "bp_school",
+"img": "assets/items/school_019.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/school_020.jpg"
+}
+],
+"library": [
+{
+"t": "out2",
+"img": "assets/items/library_001.jpg"
+},
+{
+"t": "jazz",
+"img": "assets/items/library_002.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/library_003.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/library_004.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/library_005.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/library_006.jpg"
+},
+{
+"t": "lamp",
+"img": "assets/items/library_007.jpg"
+},
+{
+"t": "bp_hospital",
+"img": "assets/items/library_008.jpg"
+},
+{
+"t": "cookbook",
+"img": "assets/items/library_009.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/library_010.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/library_011.jpg"
+},
+{
+"t": "bp_grocery",
+"img": "assets/items/library_012.jpg"
+},
+{
+"t": "bp_police",
+"img": "assets/items/library_013.jpg"
+},
+{
+"t": "out1",
+"img": "assets/items/library_014.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/library_015.jpg"
+},
+{
+"t": "bp_gas",
+"img": "assets/items/library_016.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/library_017.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/library_018.jpg"
+},
+{
+"t": "bp_library",
+"img": "assets/items/library_019.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/library_020.jpg"
+}
+],
+"hospital": [
+{
+"t": "medicine",
+"img": "assets/items/hospital_001.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/hospital_002.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/hospital_003.jpg"
+},
+{
+"t": "mop",
+"img": "assets/items/hospital_004.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/hospital_005.jpg"
+},
+{
+"t": "adrenaline",
+"img": "assets/items/hospital_006.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/hospital_007.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/hospital_008.jpg"
+},
+{
+"t": "junk",
+"img": "assets/items/hospital_009.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/hospital_010.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/hospital_011.jpg"
+},
+{
+"t": "adrenaline",
+"img": "assets/items/hospital_012.jpg"
+},
+{
+"t": "flashlight",
+"img": "assets/items/hospital_013.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/hospital_014.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/hospital_015.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/hospital_016.jpg"
+},
+{
+"t": "food2",
+"img": "assets/items/hospital_017.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/hospital_018.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/hospital_019.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/hospital_020.jpg"
+}
+],
+"gas": [
+{
+"t": "fuel",
+"img": "assets/items/gas_001.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/gas_002.jpg"
+},
+{
+"t": "switchblade",
+"img": "assets/items/gas_003.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/gas_004.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/gas_005.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/gas_006.jpg"
+},
+{
+"t": "shotgun",
+"img": "assets/items/gas_007.jpg"
+},
+{
+"t": "lighter",
+"img": "assets/items/gas_008.jpg"
+},
+{
+"t": "out1",
+"img": "assets/items/gas_009.jpg"
+},
+{
+"t": "switchblade",
+"img": "assets/items/gas_010.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/gas_011.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/gas_012.jpg"
+},
+{
+"t": "lighter",
+"img": "assets/items/gas_013.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/gas_014.jpg"
+},
+{
+"t": "food1",
+"img": "assets/items/gas_015.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/gas_016.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/gas_017.jpg"
+},
+{
+"t": "fuel",
+"img": "assets/items/gas_018.jpg"
+},
+{
+"t": "out2",
+"img": "assets/items/gas_019.jpg"
+},
+{
+"t": "medicine",
+"img": "assets/items/gas_020.jpg"
+}
+]
+}

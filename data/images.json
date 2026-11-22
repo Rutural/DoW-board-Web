@@ -1,0 +1,300 @@
+{
+ "survivors": {
+  "gabriel": {
+   "card": "assets/survivors/gabriel.jpg",
+   "portrait": "assets/portraits/gabriel.png"
+  },
+  "graybeard": {
+   "card": "assets/survivors/graybeard.jpg",
+   "portrait": "assets/portraits/graybeard.png"
+  },
+  "daniel": {
+   "card": "assets/survivors/daniel.jpg",
+   "portrait": "assets/portraits/daniel.png"
+  },
+  "david": {
+   "card": "assets/survivors/david.jpg",
+   "portrait": "assets/portraits/david.png"
+  },
+  "rod": {
+   "card": "assets/survivors/rod.jpg",
+   "portrait": "assets/portraits/rod.png"
+  },
+  "loretta": {
+   "card": "assets/survivors/loretta.jpg",
+   "portrait": "assets/portraits/loretta.png"
+  },
+  "maria": {
+   "card": "assets/survivors/maria.jpg",
+   "portrait": "assets/portraits/maria.png"
+  },
+  "mike": {
+   "card": "assets/survivors/mike.jpg",
+   "portrait": "assets/portraits/mike.png"
+  },
+  "buddy": {
+   "card": "assets/survivors/buddy.jpg",
+   "portrait": "assets/portraits/buddy.png"
+  },
+  "bev": {
+   "card": "assets/survivors/bev.jpg",
+   "portrait": "assets/portraits/bev.png"
+  },
+  "brian": {
+   "card": "assets/survivors/brian.jpg",
+   "portrait": "assets/portraits/brian.png"
+  },
+  "brandon": {
+   "card": "assets/survivors/brandon.jpg",
+   "portrait": "assets/portraits/brandon.png"
+  },
+  "sophie": {
+   "card": "assets/survivors/sophie.jpg",
+   "portrait": "assets/portraits/sophie.png"
+  },
+  "sparky": {
+   "card": "assets/survivors/sparky.jpg",
+   "portrait": "assets/portraits/sparky.png"
+  },
+  "arthur": {
+   "card": "assets/survivors/arthur.jpg",
+   "portrait": "assets/portraits/arthur.png"
+  },
+  "alexis": {
+   "card": "assets/survivors/alexis.jpg",
+   "portrait": "assets/portraits/alexis.png"
+  },
+  "annaleigh": {
+   "card": "assets/survivors/annaleigh.jpg",
+   "portrait": "assets/portraits/annaleigh.png"
+  },
+  "ashley": {
+   "card": "assets/survivors/ashley.jpg",
+   "portrait": "assets/portraits/ashley.png"
+  },
+  "andrew": {
+   "card": "assets/survivors/andrew.jpg",
+   "portrait": "assets/portraits/andrew.png"
+  },
+  "edward": {
+   "card": "assets/survivors/edward.jpg",
+   "portrait": "assets/portraits/edward.png"
+  },
+  "olivia": {
+   "card": "assets/survivors/olivia.jpg",
+   "portrait": "assets/portraits/olivia.png"
+  },
+  "janet": {
+   "card": "assets/survivors/janet.jpg",
+   "portrait": "assets/portraits/janet.png"
+  },
+  "jenny": {
+   "card": "assets/survivors/jenny.jpg",
+   "portrait": "assets/portraits/jenny.png"
+  },
+  "james": {
+   "card": "assets/survivors/james.jpg",
+   "portrait": "assets/portraits/james.png"
+  },
+  "john": {
+   "card": "assets/survivors/john.jpg",
+   "portrait": "assets/portraits/john.png"
+  },
+  "carla": {
+   "card": "assets/survivors/carla.jpg",
+   "portrait": "assets/portraits/carla.png"
+  },
+  "talia": {
+   "card": "assets/survivors/talia.jpg",
+   "portrait": "assets/portraits/talia.png"
+  },
+  "thomas": {
+   "card": "assets/survivors/thomas.jpg",
+   "portrait": "assets/portraits/thomas.png"
+  },
+  "forest": {
+   "card": "assets/survivors/forest.jpg",
+   "portrait": "assets/portraits/forest.png"
+  },
+  "harman": {
+   "card": "assets/survivors/harman.jpg",
+   "portrait": "assets/portraits/harman.png"
+  }
+ },
+ "crises": {
+  "overpop": "assets/crisis/overpop.jpg",
+  "exhaust": "assets/crisis/exhaust.jpg",
+  "strength": "assets/crisis/strength.jpg",
+  "watching": "assets/crisis/watching.jpg",
+  "march": "assets/crisis/march.jpg",
+  "spoil": "assets/crisis/spoil.jpg",
+  "hail": "assets/crisis/hail.jpg",
+  "killer": "assets/crisis/killer.jpg",
+  "despair": "assets/crisis/despair.jpg",
+  "hordes": "assets/crisis/hordes.jpg",
+  "fuelshort": "assets/crisis/fuelshort.jpg",
+  "starve": "assets/crisis/starve.jpg",
+  "horror": "assets/crisis/horror.jpg",
+  "legions": "assets/crisis/legions.jpg",
+  "blizzard": "assets/crisis/blizzard.jpg",
+  "illness": "assets/crisis/illness.jpg",
+  "shaking": "assets/crisis/shaking.jpg",
+  "raiders": "assets/crisis/raiders.jpg",
+  "wastenot": "assets/crisis/wastenot.jpg",
+  "surge": "assets/crisis/surge.jpg"
+ },
+ "objectives": {
+  "winter": {
+   "normal": "assets/objectives/winter_normal.jpg",
+   "hard": "assets/objectives/winter_hard.jpg"
+  },
+  "weeks": {
+   "normal": "assets/objectives/weeks_normal.jpg",
+   "hard": "assets/objectives/weeks_hard.jpg"
+  },
+  "stockpile": {
+   "normal": "assets/objectives/stockpile_normal.jpg",
+   "hard": "assets/objectives/stockpile_hard.jpg"
+  },
+  "home": {
+   "normal": "assets/objectives/home_normal.jpg",
+   "hard": "assets/objectives/home_hard.jpg"
+  },
+  "kill": {
+   "normal": "assets/objectives/kill_normal.jpg",
+   "hard": "assets/objectives/kill_hard.jpg"
+  },
+  "mouths": {
+   "normal": "assets/objectives/mouths_normal.jpg",
+   "hard": "assets/objectives/mouths_hard.jpg"
+  },
+  "raid": {
+   "normal": "assets/objectives/raid_normal.jpg",
+   "hard": "assets/objectives/raid_hard.jpg"
+  },
+  "leave": {
+   "normal": "assets/objectives/leave_normal.jpg",
+   "hard": "assets/objectives/leave_hard.jpg"
+  },
+  "cure": {
+   "normal": "assets/objectives/cure_normal.jpg",
+   "hard": "assets/objectives/cure_hard.jpg"
+  },
+  "samples": {
+   "normal": "assets/objectives/samples_normal.jpg",
+   "hard": "assets/objectives/samples_hard.jpg"
+  }
+ },
+ "crossroads": {
+  "G001": "assets/crossroads/G001.jpg",
+  "G002": "assets/crossroads/G002.jpg",
+  "G003": "assets/crossroads/G003.jpg",
+  "G004": "assets/crossroads/G004.jpg",
+  "G005": "assets/crossroads/G005.jpg",
+  "G006": "assets/crossroads/G006.jpg",
+  "G007": "assets/crossroads/G007.jpg",
+  "G008": "assets/crossroads/G008.jpg",
+  "G009": "assets/crossroads/G009.jpg",
+  "G010": "assets/crossroads/G010.jpg",
+  "G011": "assets/crossroads/G011.jpg",
+  "G012": "assets/crossroads/G012.jpg",
+  "G013": "assets/crossroads/G013.jpg",
+  "G014": "assets/crossroads/G014.jpg",
+  "G015": "assets/crossroads/G015.jpg",
+  "G016": "assets/crossroads/G016.jpg",
+  "G017": "assets/crossroads/G017.jpg",
+  "G018": "assets/crossroads/G018.jpg",
+  "G019": "assets/crossroads/G019.jpg",
+  "G020": "assets/crossroads/G020.jpg",
+  "G021": "assets/crossroads/G021.jpg",
+  "G022": "assets/crossroads/G022.jpg",
+  "G023": "assets/crossroads/G023.jpg",
+  "G024": "assets/crossroads/G024.jpg",
+  "G025": "assets/crossroads/G025.jpg",
+  "G026": "assets/crossroads/G026.jpg",
+  "G027": "assets/crossroads/G027.jpg",
+  "G028": "assets/crossroads/G028.jpg",
+  "G029": "assets/crossroads/G029.jpg",
+  "G030": "assets/crossroads/G030.jpg",
+  "G031": "assets/crossroads/G031.jpg",
+  "G032": "assets/crossroads/G032.jpg",
+  "G033": "assets/crossroads/G033.jpg",
+  "G034": "assets/crossroads/G034.jpg",
+  "G035": "assets/crossroads/G035.jpg",
+  "G036": "assets/crossroads/G036.jpg",
+  "G037": "assets/crossroads/G037.jpg",
+  "G038": "assets/crossroads/G038.jpg",
+  "G039": "assets/crossroads/G039.jpg",
+  "G040": "assets/crossroads/G040.jpg",
+  "G041": "assets/crossroads/G041.jpg",
+  "G042": "assets/crossroads/G042.jpg",
+  "G043": "assets/crossroads/G043.jpg",
+  "G044": "assets/crossroads/G044.jpg",
+  "G045": "assets/crossroads/G045.jpg",
+  "G046": "assets/crossroads/G046.jpg",
+  "G047": "assets/crossroads/G047.jpg",
+  "G048": "assets/crossroads/G048.jpg",
+  "G049": "assets/crossroads/G049.jpg",
+  "S001": "assets/crossroads/S001.jpg",
+  "S002": "assets/crossroads/S002.jpg",
+  "S003": "assets/crossroads/S003.jpg",
+  "S004": "assets/crossroads/S004.jpg",
+  "S005": "assets/crossroads/S005.jpg",
+  "S006": "assets/crossroads/S006.jpg",
+  "S007": "assets/crossroads/S007.jpg",
+  "S008": "assets/crossroads/S008.jpg",
+  "S009": "assets/crossroads/S009.jpg",
+  "S010": "assets/crossroads/S010.jpg",
+  "S011": "assets/crossroads/S011.jpg",
+  "S012": "assets/crossroads/S012.jpg",
+  "S013": "assets/crossroads/S013.jpg",
+  "S014": "assets/crossroads/S014.jpg",
+  "S015": "assets/crossroads/S015.jpg",
+  "S016": "assets/crossroads/S016.jpg",
+  "S017": "assets/crossroads/S017.jpg",
+  "S018": "assets/crossroads/S018.jpg",
+  "S019": "assets/crossroads/S019.jpg",
+  "S020": "assets/crossroads/S020.jpg",
+  "S021": "assets/crossroads/S021.jpg",
+  "S022": "assets/crossroads/S022.jpg",
+  "S023": "assets/crossroads/S023.jpg",
+  "S024": "assets/crossroads/S024.jpg",
+  "S025": "assets/crossroads/S025.jpg",
+  "S026": "assets/crossroads/S026.jpg",
+  "S027": "assets/crossroads/S027.jpg",
+  "S028": "assets/crossroads/S028.jpg",
+  "S029": "assets/crossroads/S029.jpg",
+  "S030": "assets/crossroads/S030.jpg",
+  "S031": "assets/crossroads/S031.jpg"
+ },
+ "board": {
+  "colony": "assets/board/colony.jpg",
+  "occupants": "assets/board/occupants.jpg",
+  "sheet": "assets/board/sheet.jpg",
+  "searchPanel": "assets/board/search_panel.jpg",
+  "itemBack": "assets/board/item_back.jpg",
+  "thumbUp": "assets/board/thumb_up.png",
+  "thumbDown": "assets/board/thumb_down.png"
+ },
+ "tokens": {
+  "frost": "assets/tokens/frost.png",
+  "wound": "assets/tokens/wound.png",
+  "food": "assets/tokens/food.png",
+  "starve": "assets/tokens/starve.png",
+  "noise": "assets/tokens/noise.png",
+  "barricade": "assets/tokens/barricade.png",
+  "helpless": "assets/tokens/helpless.png",
+  "zombie": "assets/tokens/zombie.png",
+  "morale": "assets/tokens/morale.png",
+  "round": "assets/tokens/round.png",
+  "firstPlayer": "assets/tokens/first_player.png"
+ },
+ "locations": {
+  "police": "assets/locations/police.jpg",
+  "school": "assets/locations/school.jpg",
+  "hospital": "assets/locations/hospital.jpg",
+  "library": "assets/locations/library.jpg",
+  "grocery": "assets/locations/grocery.jpg",
+  "gas": "assets/locations/gas.jpg"
+ }
+}

@@ -1,0 +1,13 @@
+node_modules
+saves
+.git
+datasets
+tests
+.github
+*.md
+.venv
+__pycache__
+*.pyc
+store
+tools
+.pytest_cache

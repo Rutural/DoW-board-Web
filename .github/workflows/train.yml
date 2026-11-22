@@ -1,0 +1,74 @@
+# 자동 학습: 매일 새벽 + 수동 실행. 게이트를 통과한 모델만 레지스트리에서 active가 되고,
+# 서버는 레지스트리를 주기적으로 읽어 재배포 없이 새 모델로 바꾼다.
+#
+# 버킷 설정(선택): Secrets DOW_STORE(s3://버킷/dow), AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+#   없으면 실행기 안의 임시 저장소로 돌고 결과를 아티팩트로만 남긴다 (연습용).
+name: Train
+
+on:
+  schedule:
+    - cron: '17 18 * * *'   # 매일 03:17 KST
+  workflow_dispatch:
+    inputs:
+      games:
+        description: '시뮬레이션 판 수'
+        default: '3000'
+      label_noise:
+        description: '시연: 학습 라벨을 일부러 뒤집을 비율 (0~0.5). 게이트가 막는지 확인'
+        default: '0'
+      skill:
+        description: '시연: 봇 실력 고정 (비우면 섞음)'
+        default: ''
+      hard:
+        description: '시연: 하드코어면 비율 (비우면 0.75)'
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: train
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOW_STORE: ${{ secrets.DOW_STORE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+      - run: pip install -r ml/requirements.txt
+      - name: 파이프라인 실행 (데이터 → 검증 → 학습 → 게이트 → parity → 레지스트리)
+        env:
+          GAMES: ${{ inputs.games || '3000' }}
+          NOISE: ${{ inputs.label_noise || '0' }}
+          SKILL: ${{ inputs.skill }}
+          HARD: ${{ inputs.hard }}
+        run: |
+          STORE="${DOW_STORE:-$RUNNER_TEMP/store}"
+          ARGS=(--store "$STORE" --games "$GAMES" --label-noise "$NOISE")
+          [ -n "$SKILL" ] && ARGS+=(--skill "$SKILL")
+          [ -n "$HARD" ] && ARGS+=(--hard "$HARD")
+          python -m ml.pipeline.run "${ARGS[@]}"
+          python -m ml.pipeline.registry --store "$STORE" show
+      - name: 결과 보관 (버킷이 없을 때)
+        if: always() && env.DOW_STORE == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: train-store
+          path: ${{ runner.temp }}/store/
+          retention-days: 14

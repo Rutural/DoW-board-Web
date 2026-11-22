@@ -1,0 +1,84 @@
+# 수동 롤백: Actions 탭 → Rollback → Run workflow
+#   대상 code  : 서버 컨테이너를 직전(또는 지정) 이미지로 (SSH)
+#   대상 model : 레지스트리의 active 모델을 직전(또는 지정) 버전으로 (버킷) — 서버는 다음 확인 주기에 자동 적용
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '무엇을 되돌릴까요'
+        type: choice
+        options: [code, model]
+        default: code
+      image:
+        description: '[code] 되돌릴 이미지 (예: ghcr.io/owner/repo:커밋sha). 비우면 직전 버전'
+        default: ''
+      task:
+        description: '[model] 과제'
+        type: choice
+        options: [y_crisis, y_collapse]
+        default: y_crisis
+      version:
+        description: '[model] 되돌릴 모델 버전. 비우면 직전 archived 모델'
+        default: ''
+      reason:
+        description: '롤백 사유 (레지스트리 기록용)'
+        default: '수동 롤백'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  code:
+    if: inputs.target == 'code'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: SSH 준비
+        env:
+          KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_lightsail
+          chmod 600 ~/.ssh/id_lightsail
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+      - name: 코드 롤백
+        env:
+          IMAGE: ${{ inputs.image }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          ssh -i ~/.ssh/id_lightsail "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
+            "echo '$TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null && \
+             /opt/dow/rollback.sh $IMAGE; rc=\$?; docker logout ghcr.io >/dev/null; tail -5 /opt/dow/deploys.log; exit \$rc"
+
+  model:
+    if: inputs.target == 'model'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DOW_STORE: ${{ secrets.DOW_STORE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r ml/requirements.txt
+      - name: 모델 롤백
+        env:
+          TASK: ${{ inputs.task }}
+          VERSION: ${{ inputs.version }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          if [ -z "$DOW_STORE" ]; then echo "DOW_STORE(버킷) 설정이 필요합니다." >&2; exit 1; fi
+          ARGS=(--store "$DOW_STORE" rollback --task "$TASK" --reason "$REASON")
+          [ -n "$VERSION" ] && ARGS+=(--to "$VERSION")
+          python -m ml.pipeline.registry "${ARGS[@]}"
+          python -m ml.pipeline.registry --store "$DOW_STORE" show

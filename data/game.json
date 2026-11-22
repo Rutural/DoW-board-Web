@@ -1,0 +1,66 @@
+{
+"locations":[
+{"id":"colony","name":"피난기지","slots":21,"entrances":6,"entranceSlots":3},
+{"id":"police","name":"경찰서","no":1,"slots":3,"entranceSlots":4,"noise":4,"symbols":"무기 > 연료 > 도구 > 식량 > 외부인"},
+{"id":"grocery","name":"마트","no":2,"slots":3,"entranceSlots":4,"noise":4,"symbols":"식량 > 약 > 도구 > 외부인"},
+{"id":"school","name":"학교","no":3,"slots":4,"entranceSlots":4,"noise":4,"symbols":"식량 > 서적 > 도구 > 약 > 외부인"},
+{"id":"library","name":"도서관","no":4,"slots":3,"entranceSlots":3,"noise":4,"symbols":"서적 > 연료 > 식량 > 도구 > 외부인"},
+{"id":"hospital","name":"병원","no":5,"slots":4,"entranceSlots":4,"noise":4,"symbols":"약 > 연료 > 식량 > 도구 > 외부인"},
+{"id":"gas","name":"주유소","no":6,"slots":2,"entranceSlots":3,"noise":4,"symbols":"연료 > 무기 > 식량 > 약 > 외부인"}
+],
+"kinds":{"weapon":"무기","fuel":"연료","book":"서적","food":"식량","medicine":"약","tool":"도구","outsider":"외부인"},
+"crises":[
+{"id":"overpop","name":"인구 과잉","need":["food"],"fail":"추방되지 않은 생존자 중 영향력이 가장 낮은 2명을 죽인다."},
+{"id":"exhaust","name":"탈진","need":["medicine"],"fail":"추방되지 않은 생존자 중 영향력이 가장 높은 5명에게 동상 1개씩."},
+{"id":"strength","name":"죽은 자들의 힘","need":["fuel"],"fail":"피난기지의 바리케이드를 모두 제거하고, 피난기지에 좀비 10마리 추가."},
+{"id":"watching","name":"놈들이 우리를 지켜보고 있다","need":["medicine","tool"],"fail":"도서관에 좀비 3, 마트에 좀비 3 추가."},
+{"id":"march","name":"죽은 자들의 행진","need":["tool","fuel"],"fail":"학교에 좀비 3, 경찰서에 좀비 3 추가."},
+{"id":"spoil","name":"식량 부패","need":["food"],"fail":"다음 라운드가 끝날 때까지 식량 토큰으로 주사위를 올릴 수 없다. 사기 −1."},
+{"id":"hail","name":"우박 폭풍","need":["tool"],"fail":"각 플레이어가 주사위 1개를 굴려 4 이하면 자기 생존자 1명에게 동상 1개. 모든 장소의 바리케이드 제거."},
+{"id":"killer","name":"살인 본능","need":["food","medicine"],"fail":"병원에 좀비 3, 주유소에 좀비 3 추가."},
+{"id":"despair","name":"절망","need":["medicine"],"fail":"사기 −2."},
+{"id":"hordes","name":"끝없는 무리","need":["tool"],"fail":"피난기지에 좀비 8마리 추가. 사기 −1."},
+{"id":"fuelshort","name":"연료 부족","need":["fuel"],"fail":"사기 −2."},
+{"id":"starve","name":"기아","need":["food"],"fail":"식량 공급처에 굶주림 토큰 1개 추가. 사기 −1."},
+{"id":"horror","name":"밤의 공포","need":["food"],"fail":"사기 −2."},
+{"id":"legions","name":"죽음의 군단","need":["fuel"],"fail":"피난기지에 좀비 12마리 추가."},
+{"id":"blizzard","name":"눈보라","need":["fuel"],"fail":"다음 라운드가 끝날 때까지 생존자는 이동할 수 없다. 사기 −1."},
+{"id":"illness","name":"질병","need":["medicine"],"fail":"모든 생존자에게 부상 1개씩. 사기 −1."},
+{"id":"shaking","name":"판 흔들기","need":["tool"],"fail":"각 플레이어는 자기 생존자 1명을 왼쪽 플레이어에게 넘긴다. 사기 −1."},
+{"id":"raiders","name":"약탈자","need":["food"],"fail":"각 플레이어는 가능하면 손에서 무작위 카드 1장을 게임에서 제거한다. 사기 −1."},
+{"id":"wastenot","name":"낭비하지 마라","need":["food"],"fail":"게임에서 제거된 식량 카드를 모두 쓰레기장에 놓는다. 사기 −1."},
+{"id":"surge","name":"좀비 급증","need":["tool"],"fail":"피난기지에 좀비 6마리, 그 밖의 모든 장소에 1마리씩 추가."}
+],
+"objectives":[
+{"id":"winter","name":"겨울이 왔다","sides":{
+ "normal":{"morale":8,"rounds":8,"time":"긺","colonyZ":10,"otherZ":1,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지 단계 시작마다 한 명이 연료 카드 1장을 이 목표 아래에 놓을 수 있다. 놓지 않으면 게임이 끝나고 목표 실패. 8라운드의 공동목표 확인 때 연료가 8장 있으면 달성.","tracker":"fuel","target":8},
+ "hard":{"morale":7,"rounds":10,"time":"긺","colonyZ":12,"otherZ":2,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지 단계 시작마다 한 명이 연료 카드 1장을 이 목표 아래에 놓을 수 있다. 놓지 않으면 게임이 끝나고 목표 실패. 10라운드의 공동목표 확인 때 연료가 10장 있으면 달성.","tracker":"fuel","target":10}}},
+{"id":"weeks","name":"어둠의 8주 / 10주","sides":{
+ "normal":{"title":"어둠의 8주","morale":7,"rounds":8,"time":"긺","colonyZ":0,"otherZ":1,"helplessPerPlayer":1,"helplessFlat":0,"victory":"8라운드 동안 살아남는다."},
+ "hard":{"title":"어둠의 10주","morale":6,"rounds":10,"time":"긺","colonyZ":0,"otherZ":3,"helplessPerPlayer":1,"helplessFlat":0,"victory":"10라운드 동안 살아남는다. 게임 종료 시 식량 공급처에 식량 토큰이 최소 6개 있어야 한다."}}},
+{"id":"stockpile","name":"비축","sides":{
+ "normal":{"morale":6,"rounds":6,"time":"중간","colonyZ":18,"otherZ":0,"helplessPerPlayer":0,"helplessFlat":0,"victory":"추방되지 않은 플레이어 1명당 식량 토큰 2개 이상, 피난기지 각 입구에 바리케이드 1개 이상, 이 목표 아래에 약 2·도구 2·연료 2장(시작 아이템 제외).","tracker":"cards"},
+ "hard":{"morale":5,"rounds":8,"time":"중간","colonyZ":18,"otherZ":0,"helplessPerPlayer":0,"helplessFlat":0,"victory":"추방되지 않은 플레이어 1명당 식량 토큰 3개 이상, 피난기지 각 입구에 바리케이드 1개 이상, 이 목표 아래에 약 2·도구 2·연료 2장(시작 아이템 제외).","tracker":"cards"}}},
+{"id":"home","name":"즐거운 나의 집","sides":{
+ "normal":{"morale":6,"rounds":6,"time":"중간","colonyZ":12,"otherZ":1,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지에 바리케이드 10개 이상, 피난기지가 아닌 각 장소에 바리케이드 1개씩."},
+ "hard":{"morale":5,"rounds":5,"time":"중간","colonyZ":18,"otherZ":2,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지에 바리케이드 14개 이상, 피난기지가 아닌 각 장소에 바리케이드 1개씩."}}},
+{"id":"kill","name":"놈들을 죽여라","sides":{
+ "normal":{"morale":7,"rounds":7,"time":"중간","colonyZ":0,"otherZ":3,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지가 아닌 모든 장소의 좀비 합계가 3 이하."},
+ "hard":{"morale":5,"rounds":5,"time":"중간","colonyZ":12,"otherZ":3,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지가 아닌 모든 장소의 좀비 합계가 1 이하이고, 피난기지가 아닌 각 장소에 바리케이드 1개 이상."}}},
+{"id":"mouths","name":"입이 너무 많다","sides":{
+ "normal":{"morale":7,"rounds":5,"time":"짧음","colonyZ":6,"otherZ":0,"helplessPerPlayer":1,"helplessFlat":3,"victory":"5라운드 동안 살아남는다."},
+ "hard":{"morale":7,"rounds":6,"time":"중간","colonyZ":12,"otherZ":0,"helplessPerPlayer":1,"helplessFlat":5,"victory":"6라운드 동안 살아남는다."}}},
+{"id":"raid","name":"약탈대","sides":{
+ "normal":{"morale":5,"rounds":6,"time":"짧음","colonyZ":2,"otherZ":2,"helplessPerPlayer":0,"helplessFlat":0,"victory":"피난기지가 아닌 장소 2곳의 아이템 덱을 바닥낸다."},
+ "hard":{"morale":5,"rounds":6,"time":"짧음","colonyZ":12,"otherZ":3,"helplessPerPlayer":0,"helplessFlat":0,"victory":"2~3인: 피난기지가 아닌 장소 2곳의 아이템 덱을 바닥낸다. (4~5인: 3곳)"}}},
+{"id":"leave","name":"모든 것을 버리고 떠나라","sides":{
+ "normal":{"morale":6,"rounds":5,"time":"짧음","colonyZ":12,"otherZ":2,"helplessPerPlayer":0,"helplessFlat":0,"victory":"모든 플레이어가 자기 생존자에게 무기 1개를 장착. 이 목표 아래에 시작한 플레이어 1명당 식량 카드 2장(시작 아이템 제외).","tracker":"cards"},
+ "hard":{"morale":5,"rounds":5,"time":"짧음","colonyZ":12,"otherZ":3,"helplessPerPlayer":0,"helplessFlat":0,"victory":"모든 플레이어가 자기 생존자에게 무기 1개를 장착. 이 목표 아래에 시작한 플레이어 1명당 식량 카드 3장(시작 아이템 제외).","tracker":"cards"}}},
+{"id":"cure","name":"치료제를 찾아라","sides":{
+ "normal":{"morale":5,"rounds":6,"time":"짧음","colonyZ":0,"otherZ":0,"helplessPerPlayer":0,"helplessFlat":0,"victory":"이 목표 아래에 시작한 플레이어 1명당 약 카드 2장(시작 아이템 제외).","tracker":"cards"},
+ "hard":{"morale":5,"rounds":6,"time":"중간","colonyZ":12,"otherZ":2,"helplessPerPlayer":0,"helplessFlat":0,"victory":"이 목표 아래에 시작한 플레이어 1명당 약 카드 3장(시작 아이템 제외).","tracker":"cards"}}},
+{"id":"samples","name":"샘플이 더 필요하다","sides":{
+ "normal":{"morale":6,"rounds":6,"time":"짧음","colonyZ":0,"otherZ":1,"helplessPerPlayer":0,"helplessFlat":0,"victory":"좀비를 죽일 때마다 주사위 1개를 굴려 4 이상이면 이 목표 위에 좀비 토큰 1개. 시작한 플레이어 1명당 3개를 모은다.","tracker":"samples","targetPerPlayer":3},
+ "hard":{"morale":6,"rounds":5,"time":"짧음","colonyZ":0,"otherZ":3,"helplessPerPlayer":0,"helplessFlat":0,"victory":"좀비를 죽일 때마다 주사위 1개를 굴려 4 이상이면 이 목표 위에 좀비 토큰 1개. 시작한 플레이어 1명당 4개를 모은다.","tracker":"samples","targetPerPlayer":4}}}
+]
+}
