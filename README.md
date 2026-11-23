@@ -68,7 +68,10 @@ npm start            # http://localhost:3000
    ```
 6. 브라우저에서 `http://<고정 IP>` 로 접속합니다.
 
-도메인을 쓰려면 Lightsail **Domains & DNS**에서 A 레코드를 고정 IP로 연결하세요. HTTPS가 필요하면 nginx + certbot을 앞에 두고 `PORT=3000`으로 바꾸면 됩니다.
+도메인을 쓰려면 A 레코드를 고정 IP로 연결한 뒤, 저장소 **Variables**에 `DOW_DOMAIN`(예: `dow.eta.pyhub.kr`)을 추가하고 다시 배포하세요. `deploy.sh`가 앱 앞에 Caddy 컨테이너를 띄워 80·443을 받고 Let's Encrypt 인증서를 자동으로 발급·갱신합니다(HTTP는 HTTPS로 자동 이동). 앱은 서버 안의 `127.0.0.1:3000`에만 열립니다. 방화벽에서 443이 열려 있어야 합니다.
+
+- 서버에서 확인: `docker ps` (dow-app, dow-caddy), `cat /opt/dow/Caddyfile`, `docker logs dow-caddy --tail 30`
+- HTTPS 끄기: Variables에서 `DOW_DOMAIN`을 지우고 서버의 `/opt/dow/domain` 파일을 지운 뒤 재배포
 
 업데이트: 새 파일을 올린 뒤 `npm ci --omit=dev && sudo systemctl restart dow`.
 

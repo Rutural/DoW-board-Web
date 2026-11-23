@@ -2,9 +2,10 @@
 #
 # 필요한 설정 (저장소 Settings → Secrets and variables → Actions)
 #   Secrets:   LIGHTSAIL_HOST     서버 고정 IP 또는 도메인
-#              LIGHTSAIL_USER     SSH 사용자 (보통 ubuntu)
-#              LIGHTSAIL_SSH_KEY  SSH 개인키 (Lightsail 기본 키 .pem 내용)
+#              LIGHTSAIL_USER     SSH 사용자 (Amazon Linux는 ec2-user, Ubuntu는 ubuntu)
+#              LIGHTSAIL_SSH_KEY  SSH 개인키 (.pem 내용)
 #   Variables: DEPLOY_ENABLED     'true'로 두면 main 병합 시 배포 (없으면 테스트·빌드까지만)
+#              DOW_DOMAIN         (선택) 도메인. 있으면 서버에 Caddy를 띄워 HTTPS로 서비스
 name: CI/CD
 
 on:
@@ -136,14 +137,17 @@ jobs:
           IMAGE: ${{ needs.build.outputs.image }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
+          DOMAIN: ${{ vars.DOW_DOMAIN }}
         run: |
           ssh -i ~/.ssh/id_lightsail "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "echo '$TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null && \
-             chmod +x /opt/dow/*.sh && /opt/dow/deploy.sh '$IMAGE' '${{ github.sha }}'; rc=\$?; docker logout ghcr.io >/dev/null; exit \$rc"
+             chmod +x /opt/dow/*.sh && DOW_DOMAIN='$DOMAIN' /opt/dow/deploy.sh '$IMAGE' '${{ github.sha }}'; rc=\$?; docker logout ghcr.io >/dev/null; exit \$rc"
       - name: 외부에서 버전 확인
+        env:
+          URL: ${{ vars.DOW_DOMAIN && format('https://{0}', vars.DOW_DOMAIN) || format('http://{0}', secrets.LIGHTSAIL_HOST) }}
         run: |
-          for i in $(seq 1 10); do
-            body=$(curl -fsS "http://${{ secrets.LIGHTSAIL_HOST }}/healthz" || true)
+          for i in $(seq 1 20); do   # 첫 HTTPS 배포는 인증서 발급에 몇 초~수십 초 걸린다
+            body=$(curl -fsS --max-time 5 "$URL/healthz" || true)
             echo "$body"
             if echo "$body" | grep -q '"version":"${{ github.sha }}"'; then exit 0; fi
             sleep 3
