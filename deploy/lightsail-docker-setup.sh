@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Amazon Lightsail (Ubuntu 22.04/24.04) 인스턴스에서 한 번만 실행: Docker 설치 + 배포 폴더 준비.
+# Amazon Lightsail 인스턴스에서 한 번만 실행: Docker 설치 + 배포 폴더 준비.
+# 지원: Amazon Linux 2023 (사용자 ec2-user), Ubuntu 22.04/24.04 (사용자 ubuntu)
 # 사용법: 이 저장소의 deploy/ 폴더를 서버에 올린 뒤  bash deploy/lightsail-docker-setup.sh
 set -euo pipefail
 DOW_HOME=/opt/dow
@@ -7,10 +8,14 @@ ME="$(whoami)"
 
 echo "▶ Docker 설치"
 if ! command -v docker >/dev/null; then
-  sudo apt-get update -y
-  sudo apt-get install -y docker.io curl
-  sudo systemctl enable --now docker
+  if command -v dnf >/dev/null; then        # Amazon Linux 2023
+    sudo dnf install -y docker
+  else                                      # Ubuntu
+    sudo apt-get update -y
+    sudo apt-get install -y docker.io curl
+  fi
 fi
+sudo systemctl enable --now docker
 sudo usermod -aG docker "$ME"
 
 echo "▶ 배포 폴더 $DOW_HOME"

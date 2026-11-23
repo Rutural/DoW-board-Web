@@ -153,13 +153,13 @@ PR / push ─▶ 단위·통합 테스트 ─▶ 브라우저 e2e ─┐
 ### 처음 한 번 설정
 
 1. **저장소:** 이 폴더를 GitHub **Private** 저장소로 올립니다.
-2. **Lightsail 인스턴스:** Ubuntu 24.04, 고정 IP 연결, 방화벽 HTTP(80)·SSH(22) 허용.
+2. **Lightsail 인스턴스:** Amazon Linux 2023 또는 Ubuntu 24.04, 고정 IP 연결, 방화벽 HTTP(80)·SSH(22) 허용.
 3. **서버 준비:** `deploy/` 폴더를 서버에 올리고 실행합니다. 실행 후 다시 접속하세요.
    ```bash
    scp -r deploy ubuntu@<고정IP>:~/ && ssh ubuntu@<고정IP> 'bash ~/deploy/lightsail-docker-setup.sh'
    ```
 4. **GitHub 설정** (Settings → Secrets and variables → Actions)
-   - Secrets: `LIGHTSAIL_HOST`(고정 IP), `LIGHTSAIL_USER`(`ubuntu`), `LIGHTSAIL_SSH_KEY`(Lightsail 기본 키 `.pem` 내용 전체)
+   - Secrets: `LIGHTSAIL_HOST`(고정 IP), `LIGHTSAIL_USER`(Amazon Linux는 `ec2-user`, Ubuntu는 `ubuntu`), `LIGHTSAIL_SSH_KEY`(Lightsail 기본 키 `.pem` 내용 전체)
    - Variables: `DEPLOY_ENABLED` = `true` (없으면 테스트·빌드까지만 하고 배포는 건너뜀)
    - Environments에 `production`을 만들면 배포 전 승인 단계를 둘 수도 있습니다.
 5. main에 병합하면 자동으로 배포됩니다. `http://<고정IP>/healthz`에서 지금 돌고 있는 커밋을 확인할 수 있습니다.
