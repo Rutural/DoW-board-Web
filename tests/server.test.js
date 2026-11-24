@@ -123,14 +123,15 @@ test('방 생성 → 참가 → 게임 → 되돌리기 → 재접속 → 종료
 });
 
 test('모델 API: 예측, 입력 검증, 새 모델 자동 교체(재배포 없이)', async () => {
+  const post = (x) => fetch(URL + '/api/predict', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x }) });
   const x = Array(FEAT.FEATURE_NAMES.length).fill(1);
-  let r = await fetch(URL + '/api/predict', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x }) });
+  let r = await post(x);
   let j = await r.json();
   assert.equal(r.status, 200);
   assert.equal(j.predictions[0].y_crisis.p, 0.5); // 절편 0 → 0.5
   assert.equal(j.predictions[0].y_crisis.version, 'crisis-v1');
 
-  r = await fetch(URL + '/api/predict', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x: [1, 2] }) });
+  r = await post([1, 2]);
   assert.equal(r.status, 400, '특징값 개수가 틀리면 거부');
 
   // 레지스트리에서 active가 바뀌면 다음 확인 주기에 자동 적용
@@ -141,7 +142,7 @@ test('모델 API: 예측, 입력 검증, 새 모델 자동 교체(재배포 없�
     await wait(100);
   }
   assert.equal(j.tasks.y_crisis.version, 'crisis-v2');
-  j = await (await fetch(URL + '/api/predict', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x }) })).json();
+  j = await (await post(x)).json();
   assert.ok(Math.abs(j.predictions[0].y_crisis.p - 1 / (1 + Math.exp(-2))) < 1e-6);
   const h = await (await fetch(URL + '/healthz')).json();
   assert.equal(h.models.y_crisis, 'crisis-v2');

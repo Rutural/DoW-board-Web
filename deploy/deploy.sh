@@ -10,21 +10,21 @@ set -euo pipefail
 IMAGE="${1:?이미지:태그를 지정하세요}"
 EXPECT="${2:-}"
 DOW_HOME="${DOW_HOME:-/opt/dow}"
-NAME="${DOW_CONTAINER:-dow-app}"
+NAME=dow-app
 NET=dow-net
 PROXY=dow-caddy
-HEALTH_TRIES="${DOW_HEALTH_TRIES:-30}"
-HEALTH_SLEEP="${DOW_HEALTH_SLEEP:-2}"
+HEALTH_TRIES=30
+HEALTH_SLEEP=2
 
 mkdir -p "$DOW_HOME/saves"
 if [[ -n "${DOW_DOMAIN:-}" ]]; then echo "$DOW_DOMAIN" > "$DOW_HOME/domain"; fi
 DOMAIN="$(cat "$DOW_HOME/domain" 2>/dev/null || true)"
 if [[ -n "$DOMAIN" ]]; then
-  HOST_PORT="${DOW_PORT:-3000}"; PUBLISH="127.0.0.1:${HOST_PORT}:3000"   # 밖에서는 Caddy 로만 들어온다
+  HOST_PORT=3000; PUBLISH="127.0.0.1:${HOST_PORT}:3000"   # 밖에서는 Caddy 로만 들어온다
 else
-  HOST_PORT="${DOW_PORT:-80}";   PUBLISH="${HOST_PORT}:3000"
+  HOST_PORT=80;   PUBLISH="${HOST_PORT}:3000"
 fi
-HEALTH_URL="${DOW_HEALTH_URL:-http://127.0.0.1:${HOST_PORT}/healthz}"
+HEALTH_URL="http://127.0.0.1:${HOST_PORT}/healthz"
 
 log() { echo "[$(date -u +%FT%TZ)] $*" | tee -a "$DOW_HOME/deploys.log"; }
 
@@ -43,10 +43,7 @@ run_image() { # $1=이미지
 
 # HTTPS 프록시 : 도메인이 있으면 Caddy 를 띄운다 (설정이 그대로이고 이미 돌고 있으면 그냥 둔다)
 ensure_proxy() {
-  if [[ -z "$DOMAIN" ]]; then
-    docker rm -f "$PROXY" >/dev/null 2>&1 || true
-    return 0
-  fi
+  [[ -z "$DOMAIN" ]] && { docker rm -f "$PROXY" >/dev/null 2>&1 || true; return 0; }
   local conf="$DOW_HOME/Caddyfile" want
   want="$DOMAIN {
 	encode gzip
@@ -83,9 +80,7 @@ log "배포 시작: $IMAGE (현재: ${CURRENT:-없음}${DOMAIN:+, 도메인: $DO
 docker pull "$IMAGE" || docker image inspect "$IMAGE" >/dev/null   # 받지 못해도 이미 있는 이미지면 진행
 
 # 1) 기존 컨테이너 정상 종료 → 진행 중인 방이 saves/rooms.json에 저장됨
-if docker ps -a --format '{{.Names}}' | grep -qx "$NAME"; then
-  docker stop -t 20 "$NAME" >/dev/null || true
-fi
+docker stop "$NAME" >/dev/null 2>&1 || true
 
 # 2) 새 버전 시작 (저장된 방 복원)
 run_image "$IMAGE"

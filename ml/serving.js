@@ -21,7 +21,7 @@ function compatible(model) {
 
 // 레지스트리를 주기적으로 읽어 active 모델이 바뀌면 교체 (모델 배포는 코드 배포와 분리)
 function createModelServer(store, { pollSeconds = 60, log = console.log } = {}) {
-  const state = { models: {}, registryEtag: null, lastCheck: null, lastError: null };
+  const state = { models: {}, lastCheck: null, lastError: null };
 
   async function refresh() {
     state.lastCheck = new Date().toISOString();
@@ -48,12 +48,10 @@ function createModelServer(store, { pollSeconds = 60, log = console.log } = {}) 
     } catch (e) { state.lastError = String(e.message || e); log('모델 레지스트리 읽기 실패: ' + state.lastError); }
   }
 
-  let timer = null;
   return {
     state,
     refresh,
-    start() { refresh(); if (pollSeconds > 0) timer = setInterval(refresh, pollSeconds * 1000); timer && timer.unref && timer.unref(); },
-    stop() { clearInterval(timer); },
+    start() { refresh(); if (pollSeconds > 0) setInterval(refresh, pollSeconds * 1000).unref(); },
     // x(특징값 벡터) → { y_crisis: {p, version}, ... }
     predictAll(x) {
       const out = {};
@@ -64,4 +62,4 @@ function createModelServer(store, { pollSeconds = 60, log = console.log } = {}) 
   };
 }
 
-module.exports = { predict, compatible, createModelServer, TASKS };
+module.exports = { predict, compatible, createModelServer };

@@ -5,7 +5,7 @@ import hashlib
 import json
 import subprocess
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +19,6 @@ EVAL_SIM_SEED, EVAL_SIM_GAMES = 90001, 3000
 class Dataset:
     name: str
     rows: list[dict]
-    meta: dict = field(default_factory=dict)
 
     def arrays(self, task: str):
         keep = [r for r in self.rows if r.get(task) is not None]
@@ -42,10 +41,9 @@ def simulate(games: int, seed: int, *, hard: float | None = None, skill: float |
     """엔진(Node)으로 봇 시뮬레이션을 돌려 행과 매니페스트를 받는다."""
     with tempfile.TemporaryDirectory() as tmp:
         cmd = ['node', str(ROOT / 'ml' / 'simulate.js'), '--games', str(games), '--seed', str(seed), '--out', tmp]
-        if hard is not None:
-            cmd += ['--hard', str(hard)]
-        if skill is not None:
-            cmd += ['--skill', str(skill)]
+        for flag, v in (('--hard', hard), ('--skill', skill)):
+            if v is not None:
+                cmd += [flag, str(v)]
         subprocess.run(cmd, check=True, capture_output=True)
         run_dir = next(Path(tmp).iterdir())
         rows = parse_jsonl((run_dir / 'rows.jsonl').read_bytes())
@@ -65,9 +63,8 @@ def load_or_create_eval_sim(store, log=print) -> Dataset:
         rows, manifest = simulate(EVAL_SIM_GAMES, EVAL_SIM_SEED)
         manifest['frozen'] = True
         put_dataset(store, EVAL_SIM_KEY, rows, manifest)
-        return Dataset('eval_sim', rows, manifest)
-    manifest = json.loads(store.get(f'{EVAL_SIM_KEY}/manifest.json'))
-    return Dataset('eval_sim', parse_jsonl(raw), manifest)
+        return Dataset('eval_sim', rows)
+    return Dataset('eval_sim', parse_jsonl(raw))
 
 
 def is_eval_game(game_id: str) -> bool:

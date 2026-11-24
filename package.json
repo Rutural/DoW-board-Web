@@ -2,7 +2,6 @@
   "name": "dow-board-helper",
   "version": "1.0.0",
   "description": "데드 오브 윈터 본판 2인 협력 보드 도우미",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node --test --test-concurrency=1 \"tests/*.test.js\"",

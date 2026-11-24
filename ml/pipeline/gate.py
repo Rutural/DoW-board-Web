@@ -24,9 +24,10 @@ def metrics(y: np.ndarray, p: np.ndarray) -> dict:
     p = np.clip(p, 1e-6, 1 - 1e-6)
     both = len(set(y.tolist())) == 2
     bins = np.minimum((p * 10).astype(int), 9)
-    ece = sum(abs(p[bins == b].mean() - y[bins == b].mean()) * (bins == b).mean() for b in range(10) if (bins == b).any())
+    gap = np.abs(np.bincount(bins, weights=p, minlength=10) - np.bincount(bins, weights=y, minlength=10))
+    ece = gap.sum() / len(y)   # Σ_b |평균p_b − 평균y_b| · n_b/n
     return {
-        'n': int(len(y)), 'pos_rate': float(y.mean()) if len(y) else None,
+        'n': int(len(y)), 'pos_rate': float(y.mean()),
         'auc': float(roc_auc_score(y, p)) if both else None,
         'brier': float(brier_score_loss(y, p)),
         'logloss': float(log_loss(y, p, labels=[0, 1])),
@@ -36,7 +37,6 @@ def metrics(y: np.ndarray, p: np.ndarray) -> dict:
 
 @dataclass
 class Decision:
-    promote: bool
     reasons: list[str] = field(default_factory=list)
     checks: list[dict] = field(default_factory=list)
 
@@ -45,18 +45,21 @@ class Decision:
         if not ok:
             self.reasons.append(f'{name}: {detail}')
 
+    @property
+    def promote(self) -> bool:
+        return not self.reasons
+
 
 def decide(y: np.ndarray, p_cand: np.ndarray, p_active: np.ndarray | None, *, slices: np.ndarray | None = None,
            real: tuple[np.ndarray, np.ndarray, np.ndarray | None] | None = None, cfg: GateConfig = GateConfig()) -> tuple[Decision, dict]:
     """같은 검증 세트에서 후보와 운영 모델을 그 자리에서 다시 평가해 비교한다."""
-    d = Decision(promote=True)
+    d = Decision()
     m = {'candidate': None, 'active': None, 'baseline': None, 'slices': {}, 'real': None}
 
     n_pos, n = int(y.sum()), len(y)
     d.add('검증 세트 크기', n >= cfg.min_eval_rows, f'{n}행 (최소 {cfg.min_eval_rows})')
     d.add('클래스 균형', min(n_pos, n - n_pos) >= cfg.min_class_rows, f'양성 {n_pos} / 음성 {n - n_pos} (각 최소 {cfg.min_class_rows})')
     if d.reasons:
-        d.promote = False
         return d, m
 
     m['candidate'] = mc = metrics(y, p_cand)
@@ -76,7 +79,7 @@ def decide(y: np.ndarray, p_cand: np.ndarray, p_active: np.ndarray | None, *, sl
                 m['slices'][s] = {'candidate_auc': sc['auc'], 'active_auc': sa['auc'], 'n': int(k.sum())}
                 d.add(f'조각[{s}] AUC', sc['auc'] >= sa['auc'] - cfg.slice_auc_tolerance, f"후보 {sc['auc']:.3f} vs 운영 {sa['auc']:.3f}")
     else:
-        d.checks.append({'check': '운영 모델', 'ok': True, 'detail': '없음 (첫 모델은 기준선·크기 조건만 확인)'})
+        d.add('운영 모델', True, '없음 (첫 모델은 기준선·크기 조건만 확인)')
 
     if real is not None:
         yr, pr_c, pr_a = real
@@ -87,7 +90,6 @@ def decide(y: np.ndarray, p_cand: np.ndarray, p_active: np.ndarray | None, *, sl
                 ra = m['real']['active']
                 d.add('실제 게임 Brier 유지', rc['brier'] <= ra['brier'] + cfg.real_brier_tolerance, f"후보 {rc['brier']:.4f} vs 운영 {ra['brier']:.4f}")
         else:
-            d.checks.append({'check': '실제 게임 비교', 'ok': True, 'detail': f'건너뜀 (실제 검증 데이터 {len(yr)}행, 최소 {cfg.real_min_rows})'})
+            d.add('실제 게임 비교', True, f'건너뜀 (실제 검증 데이터 {len(yr)}행, 최소 {cfg.real_min_rows})')
 
-    d.promote = not d.reasons
     return d, m

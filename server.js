@@ -81,19 +81,20 @@ try {
   }
 } catch (e) { console.error('저장 파일 읽기 실패', e); }
 
+function saveNow() {
+  try {
+    fs.mkdirSync(SAVE_DIR, { recursive: true });
+    const now = Date.now();
+    for (const [k, r] of rooms) if (now - r.updated > ROOM_TTL_MS) rooms.delete(k);
+    const tmp = SAVE_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify([...rooms.values()]));
+    fs.renameSync(tmp, SAVE_FILE);
+  } catch (e) { console.error('저장 실패', e); }
+}
 let saveTimer = null;
 function scheduleSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      fs.mkdirSync(SAVE_DIR, { recursive: true });
-      const now = Date.now();
-      for (const [k, r] of rooms) if (now - r.updated > ROOM_TTL_MS) rooms.delete(k);
-      const tmp = SAVE_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify([...rooms.values()]));
-      fs.renameSync(tmp, SAVE_FILE);
-    } catch (e) { console.error('저장 실패', e); }
-  }, 800);
+  saveTimer = setTimeout(saveNow, 800);
 }
 
 function newCode() {
@@ -107,10 +108,11 @@ const token = () => crypto.randomBytes(16).toString('hex');
 function seatOf(room, tok) { return room.seats.findIndex((s) => s && s.token === tok); }
 
 function publicRoom(room, seat) {
+  const online = onlineSeats(room);
   return {
     code: room.code,
     seat,
-    seats: room.seats.map((s, i) => (s ? { name: s.name, online: onlineSeats(room).has(i) } : null)),
+    seats: room.seats.map((s, i) => (s ? { name: s.name, online: online.has(i) } : null)),
     settings: room.settings,
     canUndo: room.undo.length > 0,
     game: room.game ? G.viewFor(room.game, seat) : null,
@@ -170,8 +172,7 @@ io.on('connection', (socket) => {
 
   socket.on('room.resume', ({ code, token: tok } = {}) => {
     const room = rooms.get(String(code || '').toUpperCase());
-    if (!room) return socket.emit('resume.fail');
-    const seat = seatOf(room, tok);
+    const seat = room ? seatOf(room, tok) : -1;
     if (seat < 0) return socket.emit('resume.fail');
     attach(room, seat);
   });
@@ -245,7 +246,8 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => console.log(`Dead of Winter 보드 도우미 실행 중: http://localhost:${PORT}`));
 
 function shutdown() {
-  try { fs.mkdirSync(SAVE_DIR, { recursive: true }); fs.writeFileSync(SAVE_FILE, JSON.stringify([...rooms.values()])); } catch (e) {}
+  clearTimeout(saveTimer);
+  saveNow();
   process.exit(0);
 }
 process.on('SIGTERM', shutdown);

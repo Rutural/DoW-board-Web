@@ -8,6 +8,9 @@ const NEED_KINDS = ['food', 'fuel', 'medicine', 'tool'];
 const OBJECTIVES = ['winter', 'weeks', 'stockpile', 'home', 'kill', 'mouths', 'raid', 'leave', 'cure', 'samples'];
 const OUTSIDE = ['police', 'grocery', 'school', 'library', 'hospital', 'gas'];
 
+// 다음 상처 하나로 죽는 상태 (봇의 치료·귀환 판단에도 같은 기준을 쓴다)
+const critical = (s, sv) => s.wounds + s.frost >= (sv.maxWounds || 3) - 1;
+
 const FEATURE_NAMES = [
   'rounds_left', 'rounds_played', 'morale', 'food', 'starvation', 'helpless',
   'colony_pop', 'colony_free', 'food_needed', 'food_deficit',
@@ -24,8 +27,8 @@ const FEATURE_NAMES = [
 ];
 
 /**
- * @param g    게임 상태
- * @param ctx  { TPL, LOC, SURV, objectiveSide(g), objectiveProgress(g), foodNeeded(g), crisisNeed(id), startRounds }
+ * @param g    게임 상태 (viewFor가 아닌 전체 상태: 장소 덱이 그대로 있어야 함)
+ * @param ctx  { TPL, LOC, SURV, objectiveProgress(g), foodNeeded(g), crisisNeed(id), startRounds }
  */
 function extract(g, ctx) {
   const { TPL, LOC, SURV } = ctx;
@@ -38,7 +41,7 @@ function extract(g, ctx) {
   const need = g.crisis ? ctx.crisisNeed(g.crisis.id) : [];
   const dice = g.players.flatMap((p) => p.dice);
   const equip = surv.flatMap(([, s]) => s.equip);
-  const decks = OUTSIDE.map((l) => (g.locs[l].deck ? g.locs[l].deck.length : g.locs[l].deckCount || 0));
+  const decks = OUTSIDE.map((l) => g.locs[l].deck.length);
   const foodNeeded = ctx.foodNeeded(g);
   const f = {
     rounds_left: g.round,
@@ -61,7 +64,7 @@ function extract(g, ctx) {
     survivors_outside: surv.length - colonySurv,
     wounds: surv.reduce((a, [, s]) => a + s.wounds, 0),
     frost: surv.reduce((a, [, s]) => a + s.frost, 0),
-    survivors_critical: surv.filter(([id, s]) => s.wounds + s.frost >= (SURV[id].maxWounds || 3) - 1).length,
+    survivors_critical: surv.filter(([id, s]) => critical(s, SURV[id])).length,
     dice_total: dice.length,
     dice_mean: dice.length ? dice.reduce((a, d) => a + d.v, 0) / dice.length : 0,
     hand_total: hands.length,
@@ -84,4 +87,4 @@ function extract(g, ctx) {
   return FEATURE_NAMES.map((n) => +f[n].toFixed(4));
 }
 
-module.exports = { SCHEMA_VERSION, FEATURE_NAMES, extract };
+module.exports = { SCHEMA_VERSION, FEATURE_NAMES, OUTSIDE, critical, extract };

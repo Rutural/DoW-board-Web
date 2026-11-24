@@ -21,8 +21,6 @@ sudo usermod -aG docker "$ME"
 echo "▶ 배포 폴더 $DOW_HOME"
 sudo mkdir -p "$DOW_HOME/saves"
 sudo chown -R "$ME":"$ME" "$DOW_HOME"
-cp "$(dirname "$0")"/deploy.sh "$(dirname "$0")"/rollback.sh "$DOW_HOME"/
-chmod +x "$DOW_HOME"/*.sh
 
 # 컨테이너 환경 변수 (버킷을 쓰면 채움). deploy.sh가 --env-file로 넘긴다.
 if [[ ! -f "$DOW_HOME/env" ]]; then
@@ -31,16 +29,10 @@ if [[ ! -f "$DOW_HOME/env" ]]; then
 # DOW_STORE=s3://버킷이름/dow
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
-# AWS_REGION=ap-northeast-2
+# AWS_REGION=ap-southeast-2
 MODEL_POLL_S=60
 ENV
   chmod 600 "$DOW_HOME/env"
-fi
-
-# 예전 방식(systemd + node)으로 돌던 서비스가 있으면 끈다 (80번 포트 충돌 방지)
-if systemctl list-unit-files | grep -q '^dow.service'; then
-  echo "▶ 이전 systemd 서비스 중지"
-  sudo systemctl disable --now dow || true
 fi
 
 echo

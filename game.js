@@ -13,8 +13,8 @@ const DATA = {
   items: D('items.json'),
   game: D('game.json'),
   crossroads: D('crossroads.json'),
-  itemCards: fs.existsSync(path.join(__dirname, 'data', 'item_cards.json')) ? D('item_cards.json') : null,
-  images: fs.existsSync(path.join(__dirname, 'data', 'images.json')) ? D('images.json') : null,
+  itemCards: D('item_cards.json'),
+  images: D('images.json'),
 };
 const SURV = Object.fromEntries(DATA.survivors.map((s) => [s.id, s]));
 const TPL = DATA.items.templates;
@@ -78,23 +78,11 @@ function newGame(settings) {
 }
 
 function makeCards(g, deckKey) {
-  const out = [];
-  if (DATA.itemCards && DATA.itemCards[deckKey]) {
-    for (const c of DATA.itemCards[deckKey]) {
-      const id = 'c' + (++g.seq);
-      g.cards[id] = { t: c.t, o: deckKey, img: c.img };
-      out.push(id);
-    }
-    return shuffle(out);
-  }
-  for (const [t, n] of Object.entries(DATA.items.decks[deckKey])) {
-    for (let i = 0; i < n; i++) {
-      const id = 'c' + (++g.seq);
-      g.cards[id] = { t, o: deckKey };
-      out.push(id);
-    }
-  }
-  return shuffle(out);
+  return shuffle(DATA.itemCards[deckKey].map((c) => {
+    const id = 'c' + (++g.seq);
+    g.cards[id] = { t: c.t, o: deckKey, img: c.img };
+    return id;
+  }));
 }
 
 function setupGame(g) {
@@ -152,14 +140,6 @@ function survivorsAt(g, loc) { return Object.entries(g.survivors).filter(([, s])
 function colonyPop(g) { return survivorsAt(g, 'colony').length + g.helpless; }
 function locCapacity(loc) { return LOC[loc].slots; }
 function locOccupancy(g, loc) { return survivorsAt(g, loc).length + (loc === 'colony' ? g.helpless : 0); }
-function zombiesAt(g, loc) {
-  if (loc === 'colony') return g.locs.colony.entrances.reduce((a, e) => a + e.z, 0);
-  return g.locs[loc].z;
-}
-function barricadesAt(g, loc) {
-  if (loc === 'colony') return g.locs.colony.entrances.reduce((a, e) => a + e.b, 0);
-  return g.locs[loc].b;
-}
 function diceCount(g, seat) {
   const mine = Object.values(g.survivors).filter((s) => s.owner === seat);
   const nvg = mine.reduce((a, s) => a + s.equip.filter((c) => TPL[g.cards[c].t].bonusDie).length, 0);
@@ -175,23 +155,18 @@ function foodNeeded(g) {
   return Math.ceil(colonyPop(g) / 2) + horse;
 }
 
+// 입구(피난기지는 입구 하나, 다른 장소는 장소 전체)에 빈 칸이 있는가
+const hasRoom = (slot, loc) => slot.z + slot.b < LOC[loc].entranceSlots;
+
 // 좀비 1마리씩 배치. 피난기지는 입구 1→6 순환, 매 효과마다 입구 1부터.
 function placeZombies(g, loc, n, why) {
-  const events = [];
+  let broken = 0, overruns = 0;
   for (let i = 0; i < n; i++) {
-    let slot;
-    if (loc === 'colony') {
-      slot = g.locs.colony.entrances[i % 6];
-      var cap = LOC.colony.entranceSlots;
-    } else {
-      slot = g.locs[loc]; var cap = LOC[loc].entranceSlots;
-    }
-    if (slot.z + slot.b < cap) slot.z++;
-    else if (slot.b > 0) { slot.b--; events.push('바리케이드 파괴'); }
-    else events.push('침입');
+    const slot = loc === 'colony' ? g.locs.colony.entrances[i % 6] : g.locs[loc];
+    if (hasRoom(slot, loc)) slot.z++;
+    else if (slot.b > 0) { slot.b--; broken++; }
+    else overruns++;
   }
-  const overruns = events.filter((e) => e === '침입').length;
-  const broken = events.filter((e) => e !== '침입').length;
   let msg = `${LOC[loc].name}에 좀비 ${n}마리 추가${why ? ` (${why})` : ''}`;
   if (broken) msg += ` · 바리케이드 ${broken}개 파괴`;
   if (overruns) msg += ` · ⚠ 침입 ${overruns}회!`;
@@ -204,7 +179,6 @@ function placeZombies(g, loc, n, why) {
     else if (loc === 'colony' && g.helpless > 0) { g.helpless--; victims.push('노약자'); log(g, '✝ 침입으로 노약자 1명 사망 · 사기 −1'); changeMorale(g, -1); }
   }
   if (overruns) g.pendingOverrun = { loc, count: overruns, victims };
-  return overruns;
 }
 
 function removeZombie(g, loc, entrance) {
@@ -222,13 +196,13 @@ function addBarricade(g, loc) {
   if (loc === 'colony') {
     const es = g.locs.colony.entrances;
     // 가장 바리케이드가 적은 빈 입구부터
-    const order = es.map((e, i) => i).filter((i) => es[i].z + es[i].b < LOC.colony.entranceSlots)
+    const order = es.map((e, i) => i).filter((i) => hasRoom(es[i], 'colony'))
       .sort((a, b) => es[a].b - es[b].b || a - b);
     if (!order.length) return false;
     es[order[0]].b++; return true;
   }
   const l = g.locs[loc];
-  if (l.z + l.b >= LOC[loc].entranceSlots) return false;
+  if (!hasRoom(l, loc)) return false;
   l.b++; return true;
 }
 
@@ -294,10 +268,7 @@ function endTurn(g) {
 
 function checkDeath(g, id) {
   const s = g.survivors[id];
-  if (!s) return false;
-  const max = SURV[id].maxWounds || 3;
-  if (s.wounds + s.frost >= max) { killSurvivor(g, id, '부상 누적'); return true; }
-  return false;
+  if (s && s.wounds + s.frost >= (SURV[id].maxWounds || 3)) killSurvivor(g, id, '부상 누적');
 }
 
 function killSurvivor(g, id, why, noMorale) {
@@ -376,8 +347,8 @@ A['setup.unready'] = (g, seat) => { if (g.phase === 'setup') g.players[seat].rea
 
 // 트랙
 A['track'] = (g, seat, { key, d }) => {
-  if (!['morale', 'round', 'food', 'starvation', 'helpless', 'samples'].includes(key)) fail('잘못된 트랙');
   const names = { morale: '사기', round: '라운드', food: '식량', starvation: '굶주림', helpless: '노약자', samples: '샘플' };
+  if (!Object.hasOwn(names, key)) fail('잘못된 트랙');
   if (key === 'helpless' && d > 0 && locOccupancy(g, 'colony') >= locCapacity('colony')) fail('피난기지 생존자 칸이 가득 찼습니다.');
   if (key === 'morale') { changeMorale(g, d); }
   else g[key] = Math.max(0, g[key] + d);
@@ -386,22 +357,23 @@ A['track'] = (g, seat, { key, d }) => {
   if (key === 'helpless' && d < 0) log(g, '노약자가 죽었다면 사기도 −1 하세요.');
 };
 
-// 주사위
-A['dice.use'] = (g, seat, { i }) => {
-  const d = g.players[seat].dice[i]; if (!d) fail('주사위 없음');
-  d.used = !d.used;
-};
+// 주사위 (unusedMsg가 있으면 미사용 주사위만 허용)
+function dieAt(g, seat, i, unusedMsg) {
+  const d = g.players[seat].dice[i];
+  if (!d || (unusedMsg && d.used)) fail(unusedMsg || '주사위 없음');
+  return d;
+}
+A['dice.use'] = (g, seat, { i }) => { const d = dieAt(g, seat, i); d.used = !d.used; };
 A['dice.set'] = (g, seat, { i, v }) => {
-  const d = g.players[seat].dice[i]; if (!d) fail('주사위 없음');
+  const d = dieAt(g, seat, i);
   v = Math.max(1, Math.min(6, v | 0)); log(g, `P${seat + 1}: 주사위 ${d.v} → ${v}`); d.v = v;
 };
 A['dice.reroll'] = (g, seat, { i }) => {
-  const d = g.players[seat].dice[i]; if (!d || d.used) fail('미사용 주사위만 다시 굴릴 수 있습니다.');
+  const d = dieAt(g, seat, i, '미사용 주사위만 다시 굴릴 수 있습니다.');
   const o = d.v; d.v = d6(); log(g, `P${seat + 1}: 주사위 다시 굴림 ${o} → ${d.v}`);
 };
 A['dice.food'] = (g, seat, { i }) => {
-  const d = g.players[seat].dice[i];
-  if (!d || d.used) fail('미사용 주사위를 고르세요.');
+  const d = dieAt(g, seat, i, '미사용 주사위를 고르세요.');
   if (d.v >= 6) fail('6보다 올릴 수 없습니다.');
   if (g.food <= 0) fail('식량 토큰이 없습니다.');
   g.food--; d.v++; log(g, `P${seat + 1}: 식량 토큰 1개로 주사위 +1 → ${d.v} (식량 ${g.food})`);
@@ -435,29 +407,28 @@ A['surv.move'] = (g, seat, { id, to, exposure }) => {
   log(g, msg);
 };
 
+// 동상 면역(하먼·설피): 동상 대신 일반 부상
+const frostProof = (g, id) => id === 'harman' || g.survivors[id].equip.some((c) => g.cards[c].t === 'snowshoes');
+
 function applyExposure(g, id, r) {
   const s = g.survivors[id]; if (!s) return;
-  const sv = SURV[id];
-  const shoes = s.equip.some((c) => g.cards[c].t === 'snowshoes');
-  if (r === 'bite' && sv.animal) { log(g, '스파키: 물림을 부상으로 취급'); r = 'wound'; }
-  if (r === 'frost' && (sv.id === 'harman' || shoes)) { log(g, '동상 대신 일반 부상'); r = 'wound'; }
+  if (r === 'bite' && SURV[id].animal) { log(g, '스파키: 물림을 부상으로 취급'); r = 'wound'; }
+  if (r === 'frost' && frostProof(g, id)) { log(g, '동상 대신 일반 부상'); r = 'wound'; }
   if (r === 'wound') { s.wounds++; checkDeath(g, id); }
   else if (r === 'frost') { s.frost++; checkDeath(g, id); }
   else if (r === 'bite') {
     const loc = s.loc;
     killSurvivor(g, id, '물림');
-    const next = biteCandidates(g, loc)[0];
-    if (next) {
-      g.pendingBite = { loc, target: next };
-      log(g, `⚠ 물림 확산 → ${SURV[next].name}. 조종자가 선택: 죽이기 또는 위험노출 재굴림(빈칸만 생존)`);
-    }
+    spreadBite(g, loc, '. 조종자가 선택: 죽이기 또는 위험노출 재굴림(빈칸만 생존)');
   }
 }
 
-function biteCandidates(g, loc) {
-  return survivorsAt(g, loc)
+// 물림 확산: 같은 장소의 영향력 최저 생존자(동물·살점 장착 제외)가 다음 대상
+function spreadBite(g, loc, note = '') {
+  const next = survivorsAt(g, loc)
     .filter((id) => !SURV[id].animal && !g.survivors[id].equip.some((c) => g.cards[c].t === 'flesh'))
-    .sort((a, b) => SURV[a].inf - SURV[b].inf);
+    .sort((a, b) => SURV[a].inf - SURV[b].inf)[0];
+  if (next) { g.pendingBite = { loc, target: next }; log(g, `⚠ 물림 확산 → ${SURV[next].name}${note}`); }
 }
 
 A['bite.resolve'] = (g, seat, { choice }) => {
@@ -470,8 +441,7 @@ A['bite.resolve'] = (g, seat, { choice }) => {
   log(g, `${SURV[id].name} 물림 확산 재굴림: ${EXPOSURE_KO[r]}`);
   if (r === 'blank') { log(g, '살아남았습니다. 확산이 멈춥니다.'); return; }
   killSurvivor(g, id, '물림 확산');
-  const next = biteCandidates(g, b.loc)[0];
-  if (next) { g.pendingBite = { loc: b.loc, target: next }; log(g, `⚠ 물림 확산 → ${SURV[next].name}`); }
+  spreadBite(g, b.loc);
 };
 
 A['surv.exposure'] = (g, seat, { id }) => {
@@ -483,7 +453,7 @@ A['surv.exposure'] = (g, seat, { id }) => {
 A['surv.wound'] = (g, seat, { id, kind, d }) => {
   const s = ownSurv(g, seat, id);
   const k = kind === 'frost' ? 'frost' : 'wounds';
-  if (d > 0 && k === 'frost' && (id === 'harman' || s.equip.some((c) => g.cards[c].t === 'snowshoes'))) {
+  if (d > 0 && k === 'frost' && frostProof(g, id)) {
     s.wounds++; log(g, `${SURV[id].name}: 동상 대신 일반 부상 +1`);
   } else {
     s[k] = Math.max(0, s[k] + d);
@@ -546,13 +516,12 @@ A['zombie.kill'] = (g, seat, { loc, survivor, n, exposure, entrance }) => {
   if (survivor && exposure) A['surv.exposure'](g, seat, { id: survivor });
 };
 A['zombie.lure'] = (g, seat, { from, to }) => {
+  // 옮길 칸: 피난기지는 첫 빈 입구, 다른 장소는 그 장소 (좀비를 뺀 뒤 다시 찾는다)
+  const room = () => (to === 'colony' ? g.locs.colony.entrances.find((e) => hasRoom(e, to)) : hasRoom(g.locs[to], to) && g.locs[to]);
   let moved = 0;
   for (let i = 0; i < 2; i++) {
-    const free = to === 'colony'
-      ? g.locs.colony.entrances.some((e) => e.z + e.b < 3)
-      : g.locs[to].z + g.locs[to].b < LOC[to].entranceSlots;
-    if (!free || !removeZombie(g, from)) break;
-    if (to === 'colony') { const e = g.locs.colony.entrances.find((x) => x.z + x.b < 3); e.z++; } else g.locs[to].z++;
+    if (!room() || !removeZombie(g, from)) break;
+    room().z++;
     moved++;
   }
   log(g, `좀비 유인: ${LOC[from].name} → ${LOC[to].name} ${moved}마리`);
@@ -561,7 +530,7 @@ A['barricade'] = (g, seat, { loc, d, entrance }) => {
   if (d > 0) {
     if (loc === 'colony' && entrance != null) {
       const e = g.locs.colony.entrances[entrance];
-      if (e.z + e.b >= 3) fail('그 입구에 빈 칸이 없습니다.');
+      if (!hasRoom(e, 'colony')) fail('그 입구에 빈 칸이 없습니다.');
       e.b++;
     } else if (!addBarricade(g, loc)) fail('빈 입구 칸이 없습니다.');
     log(g, `P${seat + 1}: ${LOC[loc].name} 바리케이드 +1${entrance != null ? ` (입구 ${entrance + 1})` : ''}`);
@@ -664,9 +633,9 @@ A['card.objective'] = (g, seat, { id }) => {
 A['card.unequip'] = (g, seat, { id, survivor, to }) => {
   const s = g.survivors[survivor]; const k = s ? s.equip.indexOf(id) : -1; if (k < 0) fail('장착 카드가 아닙니다.');
   s.equip.splice(k, 1);
-  if (to === 'waste') { g.waste.push(id); log(g, `${SURV[survivor].name}의 ${cardName(g, id)} → 쓰레기장`); }
-  else if (to === 'removed') { g.removed.push(id); log(g, `${SURV[survivor].name}의 ${cardName(g, id)} → 게임에서 제거`); }
-  else { g.players[s.owner].hand.push(id); log(g, `${SURV[survivor].name}의 ${cardName(g, id)} → 손으로`); }
+  const dest = { waste: [g.waste, '쓰레기장'], removed: [g.removed, '게임에서 제거'], hand: [g.players[s.owner].hand, '손으로'] };
+  const [arr, where] = dest[Object.hasOwn(dest, to) ? to : 'hand'];
+  arr.push(id); log(g, `${SURV[survivor].name}의 ${cardName(g, id)} → ${where}`);
 };
 A['card.transfer'] = (g, seat, { id, from, to }) => {
   const s = g.survivors[from]; const t = g.survivors[to];
@@ -716,7 +685,6 @@ A['xr.choose'] = (g, seat, { i }) => {
 };
 A['xr.done'] = (g) => {
   const x = g.xr; if (!x || !x.revealed) fail('발동된 크로스로드가 없습니다.');
-  g.xrRemoved = g.xrRemoved || []; g.xrRemoved.push(x.id);
   g.xr = null;
 };
 A['xr.bottom'] = (g, seat) => {
@@ -891,7 +859,7 @@ function applyCrisisFail(g, cid) {
   const byInf = (asc) => Object.keys(g.survivors).sort((a, b) => (asc ? 1 : -1) * (SURV[a].inf - SURV[b].inf));
   const wound = (id, frost) => {
     const s = g.survivors[id]; if (!s) return;
-    if (frost && !(id === 'harman' || s.equip.some((c) => g.cards[c].t === 'snowshoes'))) s.frost++; else s.wounds++;
+    if (frost && !frostProof(g, id)) s.frost++; else s.wounds++;
     checkDeath(g, id);
   };
   log(g, `위기 실패 효과 자동 적용: ${CRISIS[cid].fail}`);
@@ -937,7 +905,7 @@ A['crisis.autoFail'] = (g) => {
 
 const featCtx = {
   TPL, LOC, SURV,
-  foodNeeded: (g) => foodNeeded(g),
+  foodNeeded,
   crisisNeed: (id) => CRISIS[id].need,
   objectiveProgress: (g) => checkObjective(g).progress,
 };
@@ -967,7 +935,7 @@ function exportRows(g, source, meta = {}) {
 function apply(g, seat, type, payload) {
   const fn = A[type];
   if (!fn) fail('알 수 없는 액션: ' + type);
-  if (g.phase === 'ended' && !['chat'].includes(type)) fail('게임이 끝났습니다.');
+  if (g.phase === 'ended' && type !== 'chat') fail('게임이 끝났습니다.');
   if (g.phase === 'setup' && !type.startsWith('setup.') && type !== 'chat') fail('먼저 생존자를 고르세요.');
   fn(g, seat, payload || {});
 }
@@ -1013,4 +981,4 @@ function viewFor(g, seat) {
   return v;
 }
 
-module.exports = { DATA, newGame, setupGame, apply, viewFor, GameError, clone, OBJ, checkObjective, exportRows, FEAT, TPL, SURV, LOC, CRISIS };
+module.exports = { DATA, newGame, setupGame, apply, viewFor, GameError, OBJ, checkObjective, exportRows, FEAT, TPL, SURV, LOC, CRISIS };

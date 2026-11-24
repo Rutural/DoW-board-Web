@@ -9,8 +9,8 @@ from sklearn.preprocessing import StandardScaler
 FORMAT = 'dow-logreg-v1'
 
 
-def train(X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None, C: float = 1.0) -> Pipeline:
-    pipe = Pipeline([('scale', StandardScaler()), ('lr', LogisticRegression(C=C, max_iter=5000))])
+def train(X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None) -> Pipeline:
+    pipe = Pipeline([('scale', StandardScaler()), ('lr', LogisticRegression(max_iter=5000))])
     pipe.fit(X, y, lr__sample_weight=sample_weight)
     return pipe
 

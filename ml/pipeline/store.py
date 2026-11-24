@@ -6,8 +6,6 @@ from pathlib import Path
 
 
 class LocalStore:
-    kind = 'local'
-
     def __init__(self, root: str):
         self.root = Path(root).resolve()
 
@@ -36,8 +34,6 @@ class LocalStore:
 
 
 class S3Store:
-    kind = 's3'
-
     def __init__(self, url: str):
         import boto3
         rest = url[len('s3://'):]
@@ -59,16 +55,8 @@ class S3Store:
         self.s3.put_object(Bucket=self.bucket, Key=self.prefix + key, Body=body)  # 단일 객체 덮어쓰기는 원자적
 
     def list(self, prefix):
-        out, token = [], None
-        while True:
-            kw = {'Bucket': self.bucket, 'Prefix': self.prefix + prefix}
-            if token:
-                kw['ContinuationToken'] = token
-            r = self.s3.list_objects_v2(**kw)
-            out += [o['Key'][len(self.prefix):] for o in r.get('Contents', [])]
-            if not r.get('IsTruncated'):
-                return sorted(out)
-            token = r['NextContinuationToken']
+        pages = self.s3.get_paginator('list_objects_v2').paginate(Bucket=self.bucket, Prefix=self.prefix + prefix)
+        return sorted(o['Key'][len(self.prefix):] for page in pages for o in page.get('Contents', []))
 
     def __repr__(self):
         return f'S3Store({self.url})'

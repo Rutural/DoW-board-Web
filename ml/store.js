@@ -10,7 +10,7 @@ const path = require('path');
 function localStore(root) {
   const abs = (k) => path.join(root, ...k.split('/'));
   return {
-    kind: 'local', root,
+    kind: 'local',
     async get(key) { try { return await fs.promises.readFile(abs(key)); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } },
     async put(key, body) {
       const p = abs(key); await fs.promises.mkdir(path.dirname(p), { recursive: true });
@@ -33,7 +33,7 @@ function s3Store(url) {
   const { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
   const s3 = new S3Client({ region: process.env.AWS_REGION || 'ap-northeast-2', ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT, forcePathStyle: true } : {}) });
   return {
-    kind: 's3', root: url,
+    kind: 's3',
     async get(key) {
       try { const r = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: prefix + key })); return Buffer.from(await r.Body.transformToByteArray()); } catch (e) { if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) return null; throw e; }
     },

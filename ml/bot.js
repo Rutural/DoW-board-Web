@@ -2,16 +2,19 @@
 // 규칙 기반 봇: 엔진 액션(G.apply)만 써서 사람처럼 한 판을 진행한다.
 // skill(0~1): 낮을수록 행동을 건너뛰어 서툰 플레이를 흉내 낸다 → 상태 분포를 넓힌다.
 
+const { OUTSIDE, critical: isCritical } = require('./features');
+
 const BOT_VERSION = 'heuristic-4';
 
 function makeBot(G, { skill = 1, rand = Math.random } = {}) {
   const { TPL, SURV, LOC, CRISIS } = G;
-  const OUTSIDE = ['police', 'grocery', 'school', 'library', 'hospital', 'gas'];
   const act = (g, s, type, p) => { try { G.apply(g, s, type, p || {}); return true; } catch (e) { if (e instanceof G.GameError) return false; throw e; } };
   const alive = (g) => g.phase === 'play';
   const maybe = () => rand() < skill;
   const kind = (g, c) => TPL[g.cards[c].t].kind;
   const isStart = (g, c) => g.cards[c].o === 'start';
+  const crisisNeed = (g) => (g.crisis ? CRISIS[g.crisis.id].need : []);
+  const critical = (g, id) => isCritical(g.survivors[id], SURV[id]);
 
   // 목표에 필요한 카드(목표 아래에 놓을 카드)
   function objectiveWants(g, c) {
@@ -47,7 +50,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
   // 침입 위험이 있는 피난기지 입구 번호들 (좀비는 입구 1부터 차례로 들어온다)
   function riskyEntrances(g) {
     const adds = nextAdds(g, 'colony'); const es = g.locs.colony.entrances; const out = [];
-    for (let i = 0; i < 6; i++) { const inc = Math.floor(adds / 6) + (i < adds % 6 ? 1 : 0); if (inc && es[i].z + es[i].b + inc > 3 + es[i].b) out.push(i); }
+    for (let i = 0; i < 6; i++) { const inc = Math.floor(adds / 6) + (i < adds % 6 ? 1 : 0); if (inc && es[i].z + inc > 3) out.push(i); }
     return out;
   }
   function outsideRisk(g, loc) { const l = g.locs[loc]; return l.z + nextAdds(g, loc) - (LOC[loc].entranceSlots - l.b); }
@@ -56,7 +59,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
 
   function cardScore(g, c) {
     const k = kind(g, c);
-    const need = g.crisis ? CRISIS[g.crisis.id].need : [];
+    const need = crisisNeed(g);
     let sc = { food: 2, medicine: 2, weapon: 2, outsider: 1.5, tool: 1, fuel: 1, book: 0.8 }[k] || 1;
     if (need.includes(k)) sc += 2.5;
     if (objectiveWants(g, c)) sc += 4;
@@ -65,11 +68,10 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
     return sc + rand() * 0.3;
   }
 
-  function killWith(g, s, id, n = 1) {
+  function killWith(g, s, id, entrance) {
     const loc = g.survivors[id].loc;
     const before = zAt(g, loc);
-    const noExposure = id === 'mike';
-    act(g, s, 'zombie.kill', { loc, survivor: id, n, exposure: !noExposure });
+    act(g, s, 'zombie.kill', { loc, survivor: id, n: 1, exposure: id !== 'mike', entrance });
     const killed = before - zAt(g, loc);
     if (g.settings.objective === 'samples') {
       for (let i = 0; i < killed; i++) if (1 + Math.floor(rand() * 6) >= 4) act(g, s, 'track', { key: 'samples', d: 1 });
@@ -82,7 +84,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
     if (g.effects.some((e) => e.startsWith('눈보라'))) return false;
     // 연료는 위기·목표용으로 아끼고, 넉넉할 때만 이동에 쓴다
     const fuels = g.players[s].hand.filter((c) => g.cards[c].t === 'fuel' && !objectiveWants(g, c));
-    const crisisWantsFuel = g.crisis && CRISIS[g.crisis.id].need.includes('fuel');
+    const crisisWantsFuel = crisisNeed(g).includes('fuel');
     const fuel = !crisisWantsFuel && g.settings.objective !== 'winter' && fuels.length >= 3 ? fuels[0] : null;
     if (fuel && id !== 'rod') { act(g, s, 'card.waste', { id: fuel }); return act(g, s, 'surv.move', { id, to, exposure: 'fuel' }); }
     return act(g, s, 'surv.move', { id, to, exposure: id === 'rod' ? 'none' : 'roll' });
@@ -131,9 +133,9 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
     // 2) 치료
     for (const id of mine(g, s)) {
       const sv = g.survivors[id]; if (!sv) continue;
-      const crisisMed = g.crisis && CRISIS[g.crisis.id].need.includes('medicine');
+      const crisisMed = crisisNeed(g).includes('medicine');
       const meds = p.hand.filter((c) => g.cards[c].t === 'medicine' && !objectiveWants(g, c));
-      if (sv.wounds + sv.frost >= (SURV[id].maxWounds || 3) - 1 || (sv.wounds + sv.frost >= 1 && sv.frost > 0 && meds.length > (crisisMed ? 2 : 0))) {
+      if (critical(g, id) || (sv.wounds + sv.frost >= 1 && sv.frost > 0 && meds.length > (crisisMed ? 2 : 0))) {
         const med = meds[0];
         if (med && maybe()) { act(g, s, 'card.play', { id: med }); act(g, s, 'surv.wound', { id, kind: sv.frost ? 'frost' : 'wound', d: -1 }); }
       }
@@ -141,14 +143,13 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
 
     // 3) 위기 기여 (필요 2점 + 여유 1장)
     if (g.crisis) {
-      const need = CRISIS[g.crisis.id].need;
+      const need = crisisNeed(g);
       const cands = p.hand.filter((c) => need.includes(kind(g, c)) && !objectiveWants(g, c)).sort((a, b) => isStart(g, b) - isStart(g, a));
       for (const c of cands) { if (g.crisis.contrib.length >= 3 || !maybe()) break; act(g, s, 'card.contribute', { id: c }); }
     }
 
     // 4) 식량 카드: 필요량 대비 부족하면 사용
-    const needFood = () => Math.ceil((at(g, 'colony').length + g.helpless) / 2) + 1;
-    for (const c of [...p.hand]) if (kind(g, c) === 'food' && g.food < needFood() && !objectiveWants(g, c) && maybe()) act(g, s, 'card.play', { id: c });
+    for (const c of [...p.hand]) if (kind(g, c) === 'food' && g.food < foodNeedNext(g) + 1 && !objectiveWants(g, c) && maybe()) act(g, s, 'card.play', { id: c });
 
     // 5) 외부인, 장착 카드
     for (const c of [...p.hand]) {
@@ -170,9 +171,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
       if (!risky.length) break;
       const d = defenders().find((x) => dice(g, s).some((dd) => dd.v >= SURV[x].atk));
       if (!d || !takeDie(g, s, SURV[d].atk)) break;
-      const before = zAt(g, 'colony');
-      act(g, s, 'zombie.kill', { loc: 'colony', survivor: d, n: 1, exposure: d !== 'mike', entrance: risky[0] });
-      if (g.settings.objective === 'samples' && zAt(g, 'colony') < before && 1 + Math.floor(rand() * 6) >= 4) act(g, s, 'track', { key: 'samples', d: 1 });
+      killWith(g, s, d, risky[0]);
       handlePending(g, s);
     }
     if (o === 'kill' || o === 'samples') for (const id of defenders()) {
@@ -191,11 +190,11 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
     for (const id of mine(g, s).sort((a, b) => SURV[a].srch - SURV[b].srch)) {
       if (!alive(g) || !g.survivors[id]) continue;
       const sv = g.survivors[id];
-      if (sv.wounds + sv.frost >= (SURV[id].maxWounds || 3) - 1) { if (sv.loc !== 'colony' && maybe()) moveTo(g, s, id, 'colony'); continue; }
+      if (critical(g, id)) { if (sv.loc !== 'colony' && maybe()) moveTo(g, s, id, 'colony'); continue; }
       const outsideMine = mine(g, s).filter((x) => g.survivors[x].loc !== 'colony').length;
       if (sv.loc === 'colony' && outsideMine < 2 && SURV[id].srch <= 4 && (!sv.leader || mine(g, s).length === 1) && maybe()) {
         const foodPlace = { grocery: 2, school: 1.5, library: 0.5, hospital: 0.5, police: 0.3, gas: 0.3 };
-        const need = g.crisis ? CRISIS[g.crisis.id].need : [];
+        const need = crisisNeed(g);
         const fit = (l) => (foodLow(g) ? foodPlace[l] * 2 : 0) + (need.some((k) => LOC[l].symbols.split('>')[0].includes({ food: '식량', fuel: '연료', medicine: '약', tool: '도구' }[k])) ? 1.5 : 0);
         const dest = OUTSIDE.filter((l) => g.locs[l].deck.length > 0 && occ(g, l) < LOC[l].slots && outsideRisk(g, l) < 0)
           .sort((a, b) => (g.locs[a].z - g.locs[b].z) * 0.7 - (fit(a) - fit(b)) + (o === 'raid' ? (g.locs[a].deck.length - g.locs[b].deck.length) * 0.2 : 0) + (rand() - 0.5))[0];

@@ -43,53 +43,28 @@ npm start            # http://localhost:3000
 
 같은 와이파이의 다른 기기에서는 `http://<내 PC IP>:3000` 으로 접속할 수 있습니다.
 
-## 배포 — 둘 중 하나를 고르세요
+> 지금 운영 중인 서비스: **https://dow.eta.pyhub.kr** (Lightsail + Docker + GitHub Actions CI/CD, 아래 [CI/CD](#cicd-github-actions--lightsail) 참고)
+> 작업 내용·진행 과정·결과 전체 정리는 [`프로젝트_정리.md`](프로젝트_정리.md)에 있습니다.
 
-### A. Render (가장 간단, 무료 가능)
+## 배포 (Amazon Lightsail)
 
-1. 이 폴더를 GitHub **Private** 저장소로 올립니다.
-2. Render 대시보드 → **New → Blueprint** → 저장소 선택 (`render.yaml`이 자동으로 읽힘).
-   또는 **New → Web Service** → Build `npm ci --omit=dev`, Start `node server.js`.
-3. 배포가 끝나면 `https://dow-board-helper.onrender.com` 같은 **고정 주소**가 생깁니다.
-
-주의할 점
-- 무료 플랜은 **15분 동안 접속이 없으면 잠듭니다.** 첫 접속에 30초~1분 걸릴 수 있어요.
-- 무료 플랜 디스크는 재배포·재시작 때 초기화되어 **진행 중인 방이 사라질 수 있습니다.** 이어서 하려면 유료 플랜에 Persistent Disk를 붙이고 환경 변수 `SAVE_DIR=/var/data`(디스크 마운트 경로)를 지정하세요.
-
-### B. Amazon Lightsail (항상 켜져 있음, 저장 유지)
-
-1. Lightsail → 인스턴스 생성 → **Linux/Unix · OS Only · Ubuntu 24.04** · 가장 작은 플랜.
-2. **Networking → Create static IP** 로 고정 IP를 붙입니다. (이 IP가 고정 주소)
-3. 방화벽에 **HTTP(80)** 가 열려 있는지 확인합니다.
-4. 이 폴더를 서버에 올립니다. 예: `scp -r dow ubuntu@<고정IP>:~/` (또는 Private 저장소를 `git clone`)
-5. 서버에 SSH로 접속해 실행:
-   ```bash
-   cd ~/dow && bash deploy/lightsail-setup.sh
-   ```
-6. 브라우저에서 `http://<고정 IP>` 로 접속합니다.
-
-도메인을 쓰려면 A 레코드를 고정 IP로 연결한 뒤, 저장소 **Variables**에 `DOW_DOMAIN`(예: `dow.eta.pyhub.kr`)을 추가하고 다시 배포하세요. `deploy.sh`가 앱 앞에 Caddy 컨테이너를 띄워 80·443을 받고 Let's Encrypt 인증서를 자동으로 발급·갱신합니다(HTTP는 HTTPS로 자동 이동). 앱은 서버 안의 `127.0.0.1:3000`에만 열립니다. 방화벽에서 443이 열려 있어야 합니다.
-
-- 서버에서 확인: `docker ps` (dow-app, dow-caddy), `cat /opt/dow/Caddyfile`, `docker logs dow-caddy --tail 30`
-- HTTPS 끄기: Variables에서 `DOW_DOMAIN`을 지우고 서버의 `/opt/dow/domain` 파일을 지운 뒤 재배포
-
-업데이트: 새 파일을 올린 뒤 `npm ci --omit=dev && sudo systemctl restart dow`.
-
-### Render와 Lightsail을 함께 쓴다면
-
-두 곳은 **서로 다른 서버**라서 방이 공유되지 않습니다. 한쪽을 주 서버로 정하고 다른 쪽은 예비로 두세요.
-(예: 평소엔 Lightsail, Lightsail 점검 중에는 Render)
+Docker 컨테이너로 돌리고 GitHub Actions가 테스트 → 이미지 빌드 → 배포 → 롤백까지 자동으로 처리합니다. 서버는 항상 켜져 있고 방 저장도 유지됩니다. 설정 방법은 아래 [CI/CD](#cicd-github-actions--lightsail)의 "처음 한 번 설정"을 따르세요.
 
 ## 환경 변수
 
 | 이름 | 기본값 | 설명 |
 |---|---|---|
 | `PORT` | 3000 | 서버 포트 |
-| `SAVE_DIR` | `./saves` | 방 저장 폴더 (14일 동안 활동 없는 방은 자동 정리) |
+| `SAVE_DIR` | `./saves` | 방 저장 폴더 |
 | `ROOM_TTL_DAYS` | 14 | 이 기간 동안 활동 없는 방은 저장할 때 정리 |
 | `DOW_STORE` | `SAVE_DIR/store` | 모델·데이터 저장소 (로컬 폴더 또는 `s3://버킷/접두사`) |
 | `S3_ENDPOINT` | (없음) | S3 호환 저장소 주소를 직접 지정할 때 (로컬 테스트용 moto/MinIO 등) |
 | `MODEL_POLL_S` | 60 | 레지스트리 확인 주기(초) |
+| `AWS_REGION` | (없음) | 버킷 리전 (예: 시드니 `ap-southeast-2`) |
+| `MODEL_RELOAD_TOKEN` | (없음) | 지정하면 `POST /api/models/reload`(헤더 `x-reload-token`)로 즉시 모델 다시 읽기 |
+| `GIT_SHA` | `dev` | `/healthz`에 표시할 코드 버전 (배포 스크립트가 커밋 sha로 넣음) |
+
+Lightsail에서는 이 값들을 서버의 `/opt/dow/env`에 적습니다. **파일을 고친 뒤에는 `docker restart`가 아니라 재배포해야 적용됩니다**(`/opt/dow/deploy.sh "$(cat /opt/dow/current)"`). `docker restart`는 env 파일을 다시 읽지 않습니다.
 
 ## 진행 방법 요약
 
@@ -103,13 +78,15 @@ npm start            # http://localhost:3000
 ## 파일 구조
 
 ```
-server.js          방·소켓·저장·되돌리기
+server.js          방·소켓·저장·되돌리기·모델 API
 game.js            게임 상태와 액션(보드 도우미 엔진)
 data/              생존자·아이템·위기·공동목표·장소·크로스로드 데이터
 public/            화면 (index.html, style.css, app.js)
-deploy/            Lightsail 설치 스크립트
-render.yaml        Render 블루프린트
-Dockerfile         컨테이너 배포용 (Lightsail Containers 등)
+ml/                특징값 정의, 시뮬레이션 봇, 서빙, 저장소, 학습 파이프라인(pipeline/), ML 테스트
+tests/             엔진·서버·스트레스·재현성 테스트, 브라우저 e2e
+deploy/            deploy.sh(배포·자동 롤백·HTTPS), rollback.sh, Lightsail 시작·설정 스크립트
+.github/workflows/ ci-cd.yml(테스트→빌드→배포), train.yml(자동 학습), rollback.yml(코드·모델 롤백)
+Dockerfile         서버 이미지
 ```
 
 ## 다음에 추가할 만한 것
@@ -140,42 +117,59 @@ Dockerfile         컨테이너 배포용 (Lightsail Containers 등)
 
 | 명령 | 내용 | 시간 |
 |---|---|---|
-| `npm test` | 엔진 규칙 단위 테스트 15개, 무작위 행동 150판 + 봇 300판 스트레스, 서버 통합(소켓 2개로 방→게임→되돌리기→재접속→기록 저장), 시뮬레이션 재현성 | 약 4초 |
-| `npm run test:e2e` | 브라우저 2개(데스크톱·모바일)로 실제 화면 조작 14개 항목, 서버 재시작 후 복원까지. 준비: `pip install playwright && python -m playwright install --with-deps chromium` | 약 20초 |
+| `npm test` | 엔진 규칙 단위 테스트, 무작위 행동 150판 + 봇 300판 스트레스, 서버 통합(소켓 2개로 방→게임→되돌리기→재접속→기록 저장), 시뮬레이션 재현성 | 약 4초 |
+| `python -m pytest ml/tests` | ML 파이프라인: 게이트 경계 사례, 레지스트리, 데이터 검증, 전체 흐름(parity 포함). 준비: `pip install -r ml/requirements.txt` | 약 30초 |
+| `npm run test:e2e` | 브라우저 2개(데스크톱·모바일)로 실제 화면 조작, 서버 재시작 후 복원까지. 준비: `pip install playwright -r ml/requirements.txt && python -m playwright install --with-deps chromium` | 약 20초 |
 
 ## CI/CD (GitHub Actions → Lightsail)
 
 ```
-PR / push ─▶ 단위·통합 테스트 ─▶ 브라우저 e2e ─┐
-                                              ├─(main만)─▶ Docker 이미지 빌드 → GHCR(ghcr.io/<owner>/<repo>:<커밋sha>)
-                                              │              └─▶ SSH로 Lightsail 배포 → 헬스체크(버전 일치)
-                                              │                     └ 실패 시 서버에서 직전 이미지로 자동 롤백
+PR / push ─▶ 단위·통합 테스트 ─┬─▶ 브라우저 e2e ─┐
+           └▶ ML 테스트 ───────┴────────────────┼─(main만)─▶ Docker 이미지 빌드 → GHCR(ghcr.io/<owner>/<repo>:<커밋sha>)
+                                                │              └─▶ SSH로 Lightsail 배포 → 헬스체크(버전 일치)
+                                                │                     │ 실패 시 서버에서 직전 이미지로 자동 롤백
+                                                │                     └─▶ 밖에서 https://<도메인>/healthz 버전 확인
 수동 롤백: Actions 탭 → Rollback → Run workflow (비우면 직전 버전)
 ```
 
 ### 처음 한 번 설정
 
 1. **저장소:** 이 폴더를 GitHub **Private** 저장소로 올립니다.
-2. **Lightsail 인스턴스:** Amazon Linux 2023 또는 Ubuntu 24.04, 고정 IP 연결, 방화벽 HTTP(80)·SSH(22) 허용.
-3. **서버 준비:** `deploy/` 폴더를 서버에 올리고 실행합니다. 실행 후 다시 접속하세요.
-   ```bash
-   scp -r deploy ubuntu@<고정IP>:~/ && ssh ubuntu@<고정IP> 'bash ~/deploy/lightsail-docker-setup.sh'
-   ```
-4. **GitHub 설정** (Settings → Secrets and variables → Actions)
-   - Secrets: `LIGHTSAIL_HOST`(고정 IP), `LIGHTSAIL_USER`(Amazon Linux는 `ec2-user`, Ubuntu는 `ubuntu`), `LIGHTSAIL_SSH_KEY`(Lightsail 기본 키 `.pem` 내용 전체)
+2. **Lightsail 인스턴스** (예: 시드니, Amazon Linux 2023, 2GB)
+   - 만들 때 **고급 설정 → 시작 스크립트**에 `deploy/launch-script-lightsail.sh` 내용을 붙여 넣습니다. Docker·git과 셸 도구를 설치하고 `/opt/dow`(배포 폴더)와 `/opt/dow/env`를 만듭니다. 로그는 `/var/log/cloud-init-output.log`에 남습니다.
+   - SSH 키는 직접 만든 키를 쓰는 경우 **만들 때 한 번만** 개인키(`.pem`)를 내려받을 수 있으니 잘 보관합니다.
+   - **네트워킹:** 고정 IP를 붙이고, 방화벽 **IPv4와 IPv6 모두**에 SSH(22)·HTTP(80)·HTTPS(443)를 엽니다.
+   - 이미 만든 인스턴스(Ubuntu 포함)라면 시작 스크립트 대신 `deploy/` 폴더를 올려 `bash deploy/lightsail-docker-setup.sh`를 한 번 실행하고 다시 접속합니다.
+3. **GitHub 설정** (Settings → Secrets and variables → Actions)
+   - Secrets: `LIGHTSAIL_HOST`(고정 IP), `LIGHTSAIL_USER`(Amazon Linux는 `ec2-user`, Ubuntu는 `ubuntu`), `LIGHTSAIL_SSH_KEY`(`.pem` 내용 전체, `-----BEGIN`부터 `-----END`까지)
    - Variables: `DEPLOY_ENABLED` = `true` (없으면 테스트·빌드까지만 하고 배포는 건너뜀)
+   - Variables: `DOW_DOMAIN` = 도메인 (선택, 아래 HTTPS)
    - Environments에 `production`을 만들면 배포 전 승인 단계를 둘 수도 있습니다.
-5. main에 병합하면 자동으로 배포됩니다. `http://<고정IP>/healthz`에서 지금 돌고 있는 커밋을 확인할 수 있습니다.
+4. main에 병합하면 자동으로 배포됩니다. `/healthz`에서 지금 돌고 있는 커밋을 확인할 수 있습니다.
+5. 버킷을 쓰려면 아래 [Lightsail 버킷 연결](#lightsail-버킷-연결)을 이어서 합니다.
+
+### HTTPS (도메인)
+
+1. 도메인의 A 레코드를 고정 IP로 연결합니다. `nslookup <도메인>`으로 고정 IP가 나오는지 확인합니다.
+2. 저장소 **Variables**에 `DOW_DOMAIN`(예: `dow.eta.pyhub.kr`)을 추가하고 다시 배포합니다.
+3. `deploy.sh`가 앱 앞에 Caddy 컨테이너(`dow-caddy`)를 띄웁니다.
+   - Caddy가 80·443을 받고 Let's Encrypt 인증서를 자동으로 발급·갱신합니다. HTTP는 HTTPS로 자동 이동합니다.
+   - 앱(`dow-app`)은 서버 안의 `127.0.0.1:3000`에만 열립니다.
+   - 도메인은 서버의 `/opt/dow/domain`에 기억되어, 서버에서 직접 하는 수동 롤백 때도 유지됩니다.
+4. 배포 워크플로의 마지막 확인도 `https://<도메인>/healthz`로 바뀝니다.
+
+- 서버에서 확인: `docker ps` (dow-app, dow-caddy), `cat /opt/dow/Caddyfile`, `docker logs dow-caddy --tail 30`
+- 브라우저에 "이 사이트는 보안 연결을 지원하지 않습니다"가 뜨면 방화벽 443이 닫혀 있는 경우가 대부분입니다.
+- HTTPS 끄기: Variables에서 `DOW_DOMAIN`을 지우고 서버의 `/opt/dow/domain` 파일을 지운 뒤 재배포합니다.
 
 ### 배포 방식과 롤백
 
 - **교체 순서:** 기존 컨테이너를 정상 종료(진행 중인 방을 `saves/`에 저장) → 새 컨테이너 시작(방 복원) → `/healthz`의 버전이 새 커밋과 같은지 확인. 교체 중 몇 초 끊깁니다. 두 서버가 같은 저장 파일을 동시에 쓰지 않도록 일부러 블루/그린 방식을 쓰지 않았습니다.
-- **자동 롤백:** 헬스체크가 60초 안에 통과하지 못하면 직전 이미지로 다시 띄웁니다. 이미지를 받지 못하면 기존 서비스를 건드리지 않습니다.
-- **수동 롤백:** 서버에서 `/opt/dow/rollback.sh`(직전 버전), `/opt/dow/rollback.sh <이미지:태그>`(지정 버전). 다시 실행하면 롤백이 취소됩니다.
+- **자동 롤백:** 헬스체크가 60초 안에 통과하지 못하면 직전 이미지로 다시 띄웁니다. 이미지를 받지 못했고 서버에도 없으면 기존 서비스를 건드리지 않고 멈춥니다.
+- **수동 롤백:** Actions → Rollback(target=code), 또는 서버에서 `/opt/dow/rollback.sh`(직전 버전), `/opt/dow/rollback.sh <이미지:태그>`(지정 버전). 다시 실행하면 롤백이 취소됩니다. 지금 버전을 넘기면 "이미 … 버전입니다"만 출력하고 아무것도 하지 않습니다.
+- **같은 버전 다시 띄우기**(env를 고친 뒤 등): `/opt/dow/deploy.sh "$(cat /opt/dow/current)"`
 - **기록:** `/opt/dow/current`, `/opt/dow/previous`, `/opt/dow/deploys.log`
 - 진행 중인 방과 실제 게임 학습 기록(`saves/`)은 서버의 `/opt/dow/saves`에 남아 배포·롤백과 무관하게 유지됩니다.
-
-> 예전 방식(`deploy/lightsail-setup.sh`, systemd + node 직접 실행)은 CI/CD 없이 수동으로 올릴 때만 쓰세요. Docker 설정 스크립트가 예전 서비스를 자동으로 끕니다.
 
 ## MLOps 파이프라인 (학습 → 게이트 → 서빙 → 모니터링 → 롤백)
 
@@ -187,9 +181,10 @@ PR / push ─▶ 단위·통합 테스트 ─▶ 브라우저 e2e ─┐
    ① 데이터 적재  ② 검증(스키마·특징 수·NaN·라벨 분포)  ③ 학습(로지스틱 회귀, 실제 게임은 가중치 3)
    ④ 게이트: 고정 검증 세트 eval/sim-v1에서 후보와 운영 모델을 그 자리에서 다시 평가
         기준선보다 나음 · AUC/Brier 유지(허용 오차) · 공동목표별 조각 비교 · 실제 게임 검증(100행 이상일 때)
-   ⑤ parity: Python 학습 결과 vs Node 서빙 결과 최대 차이 1e-9 이하
+   ⑤ parity: Python 학습 결과 vs Node 서빙 결과 최대 차이 1e-9 이하 (실제 약 5e-16)
    ⑥ 레지스트리 등록: 통과 → active(이전은 archived) / 실패 → rejected + 사유
-   ⑦ 모니터링: 시뮬레이션 vs 실제 분포 차이(PSI), 실제 게임 예측 성능(AUC·Brier·보정 오차)
+   ⑦ 모니터링: 시뮬레이션 vs 실제 분포 차이(PSI, 실제 30행부터),
+              실제 게임 예측 성능(AUC·Brier·보정 오차, 예측이 기록된 실제 라운드 20개부터)
                                    │
  게임 서버: registry.json을 60초마다 확인 → active가 바뀌면 재배포 없이 모델 교체
             /api/predict · /api/models · /healthz(운영 모델 버전) · 화면 "AI 예측" 게이지
@@ -200,8 +195,8 @@ PR / push ─▶ 단위·통합 테스트 ─▶ 브라우저 e2e ─┐
 | 특징값 정의 (학습·서빙 공용) | `ml/features.js` |
 | 파이프라인 | `ml/pipeline/` (`run.py` 실행, `gate.py`, `registry.py`, `monitor.py`, `data.py`, `model.py`, `store.py`) |
 | 서빙 | `ml/serving.js`, 서버의 `/api/predict` |
-| 시연용 실제 게임 대역 | `ml/demo_real_games.js` (행에 `demo: true`) |
-| 테스트 | `python -m pytest ml/tests` (18개: 게이트 엣지 케이스, 레지스트리, 데이터 검증, 전체 흐름) |
+| 시연용 실제 게임 대역 | `ml/simulate.js --store` (행에 `demo: true`) |
+| 테스트 | `python -m pytest ml/tests` (게이트 엣지 케이스, 레지스트리, 데이터 검증, 전체 흐름) |
 
 ### 로컬에서 한 바퀴 돌려 보기
 
@@ -209,7 +204,7 @@ PR / push ─▶ 단위·통합 테스트 ─▶ 브라우저 e2e ─┐
 pip install -r ml/requirements.txt
 python3 -m ml.pipeline.run --store saves/store                    # 첫 모델 학습 → 승격
 npm start                                                         # 서버가 saves/store의 모델을 읽어 게이지 표시
-node ml/demo_real_games.js --store saves/store --games 120        # (시연) 실제 게임 대역 → 모니터링 데이터
+node ml/simulate.js --store saves/store --games 120        # (시연) 실제 게임 대역 → 모니터링 데이터
 python3 -m ml.pipeline.run --store saves/store                    # 재학습: 게이트 비교 + 드리프트 리포트
 python3 -m ml.pipeline.run --store saves/store --label-noise 0.4  # (시연) 오염된 라벨 → 게이트가 차단
 python3 -m ml.pipeline.registry --store saves/store show          # 레지스트리 상태
@@ -220,17 +215,25 @@ python3 -m ml.pipeline.registry --store saves/store rollback --task y_crisis   #
 
 ### Lightsail 버킷 연결
 
-1. Lightsail 콘솔 → **Storage → Create bucket** (예: `dow-mlops`, 서울 리전)
-2. 버킷 → **Permissions → Access keys → Create access key** (키 ID와 비밀 키 보관)
-3. **서버:** `/opt/dow/env` 파일에서 주석을 풀고 채운 뒤 `/opt/dow/rollback.sh "$(cat /opt/dow/current)"`(같은 버전 재시작)나 다음 배포로 적용
+1. Lightsail 콘솔 → **스토리지 → 버킷 생성** (인스턴스와 같은 리전, 예: 시드니)
+2. 버킷 → **권한 → 리소스 액세스**에서 인스턴스를 연결합니다. 이렇게 하면 **서버에는 키를 두지 않아도** 됩니다(인스턴스 자격 증명 사용).
+3. 버킷 → **권한 → 액세스 키 → 액세스 키 생성** (GitHub Actions 학습용. 키 ID와 비밀 키는 이때만 보이니 보관)
+4. **서버:** `/opt/dow/env`를 아래처럼 쓰고 재배포로 적용합니다(`docker restart`로는 적용되지 않음).
+   ```bash
+   cat > /opt/dow/env <<'ENV'
+   DOW_STORE=s3://<버킷이름>/dow
+   AWS_REGION=ap-southeast-2
+   MODEL_POLL_S=60
+   ENV
+   chmod 600 /opt/dow/env
+   /opt/dow/deploy.sh "$(cat /opt/dow/current)"
    ```
-   DOW_STORE=s3://dow-mlops/dow
-   AWS_ACCESS_KEY_ID=...
-   AWS_SECRET_ACCESS_KEY=...
-   AWS_REGION=ap-northeast-2
-   ```
-4. **GitHub Secrets:** `DOW_STORE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` — Train·Rollback(model) 워크플로가 같은 버킷을 씁니다.
-5. 버킷이 없으면 서버는 `/opt/dow/saves/store`(로컬), Train 워크플로는 실행기 임시 폴더를 쓰고 결과를 아티팩트로 남깁니다(연습용).
+   - `DOW_STORE`는 GitHub Secret의 `DOW_STORE`와 **완전히 같아야** 합니다(버킷 이름과 `/dow` 접두사까지).
+   - 리소스 액세스 대신 키를 쓰려면 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` 줄을 더합니다.
+   - 브라우저 SSH에서 nano로 열면 한글 주석이 깨져 보일 수 있습니다. 파일은 정상이며, 위처럼 통째로 다시 쓰면 간단합니다.
+5. **GitHub Secrets:** `DOW_STORE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` — Train·Rollback(model) 워크플로가 같은 버킷을 씁니다.
+6. **확인:** `https://<도메인>/api/models`에서 `"store":"s3"`이고 과제별 모델 버전이 보이면 연결된 것입니다. `"store":"local"`이면 서버 env에 `DOW_STORE`가 빠진 것이고, `last_error`에 자격 증명 오류가 있으면 리소스 액세스 연결(또는 키)을 확인합니다.
+7. 버킷이 없으면 서버는 `/opt/dow/saves/store`(로컬), Train 워크플로는 실행기 임시 폴더를 쓰고 결과를 아티팩트로 남깁니다(연습용). 이 경우 GitHub에서 학습한 모델은 서버에 전달되지 않습니다.
 
 ### 버킷 코드를 로컬에서 미리 확인하기 (AWS 없이)
 
@@ -249,12 +252,14 @@ curl http://127.0.0.1:3950/healthz      # models에 방금 학습한 버전이 �
 
 실제 Lightsail 버킷에서는 `S3_ENDPOINT`를 지정하지 않습니다(AWS 기본 주소 사용).
 
-### 롤백 정리
+### 모델 롤백
 
-| 대상 | 방법 | 적용 |
-|---|---|---|
-| 코드(서버) | 배포 실패 시 자동 / Actions → Rollback(target=code) / 서버에서 `/opt/dow/rollback.sh` | 즉시 |
-| 모델 | Actions → Rollback(target=model) / `python -m ml.pipeline.registry --store … rollback --task …` | 서버가 다음 확인 주기(기본 60초)에 자동 적용 |
+코드(서버) 롤백은 위 [배포 방식과 롤백](#배포-방식과-롤백)을 참고하세요.
+
+- 방법: Actions → Rollback(target=model), 또는 `python -m ml.pipeline.registry --store … rollback --task …`. 서버가 다음 확인 주기(기본 60초)에 자동으로 적용합니다.
+- 모델 롤백은 과제별로 따로 됩니다(`y_crisis`만 되돌리면 `y_collapse`는 그대로).
+- **승격이 두 번 이상 있어야 롤백할 수 있습니다.** 되돌아갈 `archived` 모델이 없으면 "되돌릴 이전 모델이 없습니다"로 실패합니다. 차단(rejected)된 실행은 운영 모델을 바꾸지 않으므로 롤백 대상이 생기지 않습니다.
+- 시연 순서 예: 승격(label_noise 0) → 승격 → 차단(label_noise 0.4) → 롤백. Train의 **Re-run**은 이전 입력값을 그대로 쓰므로, 입력을 바꾸려면 **Run workflow**로 새로 실행합니다.
 
 모델과 코드의 배포·롤백이 분리되어 있어서, 모델만 바꾸거나 되돌릴 때 서버를 재시작하지 않습니다. 단, 특징값 정의(`ml/features.js`)가 바뀌면 서버가 스키마를 확인해 맞지 않는 모델은 쓰지 않습니다(학습·서빙 불일치 방지).
 
@@ -262,4 +267,5 @@ curl http://127.0.0.1:3950/healthz      # models에 방금 학습한 버전이 �
 
 - 봇 승률이 3.6%로 사람보다 많이 약해서 "최종 승리" 예측은 아직 하지 않습니다(위기 성공·붕괴 위험 두 과제만).
 - 시뮬레이션은 크로스로드 효과를 처리하지 않아 실제 게임과 분포가 다릅니다. 이 차이는 모니터링의 PSI로 드러나도록 해 두었습니다.
-- 실제 게임이 쌓이기 전까지는 게이트의 "실제 게임 검증" 항목이 건너뛰어집니다(100행 이상부터 비교).
+- 실제 게임이 쌓이기 전까지는 게이트의 "실제 게임 검증" 항목이 건너뛰어집니다(100행 이상부터 비교). 실제 성능 모니터링은 예측이 기록된 실제 라운드 20개부터 계산됩니다.
+- 배포는 무중단이 아닙니다. 방 저장 파일 충돌을 피하려고 정상 종료 → 교체 방식을 써서 몇 초 끊깁니다.

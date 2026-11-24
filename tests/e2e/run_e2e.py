@@ -127,7 +127,6 @@ async def main():
             print('▶ 시나리오 3: 크로스로드 발동 → 선택')
             await o.click('.parea.mine .xr-hold'); await o.wait_for_selector('.modal')
             await o.click('.modal [data-a="xr.reveal"]'); await t.wait_for_selector('.modal [data-a="xr.choose"]')
-            check(True, '발동하면 턴 플레이어 화면에 카드가 열림')
             await t.locator('.modal [data-a="xr.choose"]').first.click(); await t.wait_for_timeout(150)
             await t.click('.modal [data-a="xr.done"]'); await t.wait_for_timeout(200)
 
@@ -145,7 +144,6 @@ async def main():
 
             print('▶ 시나리오 5: 새로고침 재접속, 서버 재시작 후 복원')
             await t.reload(); await t.wait_for_selector('.table-board', timeout=6000)
-            check(True, '새로고침해도 같은 자리로 재접속')
             stop_server(srv); srv = start_server()
             await a.reload(); await a.wait_for_selector('.table-board', timeout=8000)
             check('탐색' in await a.inner_text('.log'), '서버 재시작 후 진행 상황 복원')

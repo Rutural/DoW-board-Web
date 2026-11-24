@@ -6,14 +6,10 @@
 set -euo pipefail
 ARCH=$(uname -m)
 
-# ── Docker + Compose 플러그인 (Amazon Linux 2023 의 docker 패키지에는 Compose 가 없다) ──
+# ── Docker ──
 dnf install -y docker git zsh util-linux-user libicu perl-Digest-SHA
 systemctl enable --now docker
 usermod -aG docker ec2-user
-mkdir -p /usr/local/lib/docker/cli-plugins
-curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$ARCH" \
-  -o /usr/local/lib/docker/cli-plugins/docker-compose
-chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # ── 배포 폴더 : 배포·롤백 스크립트, 방 저장(saves), 컨테이너 환경 변수(env) ──
 install -d -o ec2-user -g ec2-user /opt/dow /opt/dow/saves
