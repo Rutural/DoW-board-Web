@@ -357,6 +357,9 @@ span.die6{cursor:default}
   .lc-ent .eslot{width:20px;height:20px}
   .nslot{width:16px;height:16px}
   .pawn-nm{font-size:8px}
+  .ref-sheet,.parea.theirs .ref-sheet{width:100%}
+  .scard-wrap.leader .pcard.surv,.parea.theirs .scard-wrap.leader .pcard.surv{width:130px}
+  .scard-wrap.follower .pcard.surv,.parea.theirs .scard-wrap.follower .pcard.surv{width:105px}
   .pcard.item{width:86px}
   .pa-hand{flex-direction:column;align-items:stretch}
 }
