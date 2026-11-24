@@ -32,8 +32,6 @@ REAL_WEIGHT = 3.0   # 실제 게임 한 행을 시뮬레이션 몇 행만큼 쳐
 
 
 def git_sha() -> str:
-    if os.environ.get('GITHUB_SHA'):
-        return os.environ['GITHUB_SHA'][:12]
     try:
         return subprocess.run(['git', 'rev-parse', '--short=12', 'HEAD'], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
     except Exception:
@@ -139,8 +137,6 @@ def main(argv=None) -> int:
             'data': report['data'], 'metrics': mets['candidate'],
             'options': {'label_noise': a.label_noise, 'hard': a.hard, 'skill': a.skill},
         })
-        # 내보낸 JSON과 sklearn 예측이 같은지 (내보내기 버그 방지)
-        assert np.allclose(M.predict_artifact(art, Xe), p_cand, atol=1e-9)
 
         log(f'⑤ [{task}] parity (Python 학습 vs Node 서빙, 검증 세트 500행)')
         ok, diff = parity(art, Xe[:500], p_cand[:500])

@@ -50,4 +50,11 @@ function openStore(spec) {
   return spec && spec.startsWith('s3://') ? s3Store(spec) : localStore(path.resolve(spec));
 }
 
-module.exports = { openStore };
+// 끝난 실제 게임의 라운드별 학습 행을 datasets/real/date=<오늘>/<게임id>.jsonl 로 올린다 (서버·시연 공용). 올린 키를 돌려준다.
+async function putRealGame(store, g, rows) {
+  const key = `datasets/real/date=${new Date().toISOString().slice(0, 10)}/${g.id}.jsonl`;
+  await store.put(key, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  return key;
+}
+
+module.exports = { openStore, putRealGame };

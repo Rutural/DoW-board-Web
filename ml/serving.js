@@ -52,11 +52,11 @@ function createModelServer(store, { pollSeconds = 60, log = console.log } = {}) 
     state,
     refresh,
     start() { refresh(); if (pollSeconds > 0) setInterval(refresh, pollSeconds * 1000).unref(); },
-    // x(특징값 벡터) → { y_crisis: {p, version}, ... }
+    // x(특징값 벡터) → { y_crisis: {p, version}, ... }, 운영 중인 모델이 없으면 null
     predictAll(x) {
-      const out = {};
-      for (const [task, m] of Object.entries(state.models)) out[task] = { p: +predict(m, x).toFixed(6), version: m.version };
-      return out;
+      const entries = Object.entries(state.models);
+      if (!entries.length) return null;
+      return Object.fromEntries(entries.map(([task, m]) => [task, { p: +predict(m, x).toFixed(6), version: m.version }]));
     },
     info() { return { tasks: Object.fromEntries(Object.entries(state.models).map(([t, m]) => [t, { version: m.version, trained_at: m.trained_at, metrics: m.metrics }])), last_check: state.lastCheck, last_error: state.lastError, store: store.kind }; },
   };

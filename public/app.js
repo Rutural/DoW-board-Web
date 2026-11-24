@@ -147,8 +147,7 @@ const UI = {
     const src = document.getElementById('fc-src').value;
     const id = document.getElementById('fc-card').value;
     if (!id) return toast('카드를 고르세요.', true);
-    if (src === 'waste' || src === 'removed') act('deck.fetch', { source: src, id });
-    else act('deck.fetch', { loc: src, id });
+    act('deck.fetch', { source: src, id }); // 카드 선택은 쓰레기장·제거 더미에서만 나온다
     closeModal();
   },
   fetchOpen() { openModal({ kind: 'fetch', src: 'waste' }); },
@@ -188,7 +187,7 @@ function objBlock(objId, side) {
   return `<div class="obj-desc">
     <b>${esc(s.title || o.name)}</b> <span class="tag">${side === 'hard' ? '하드코어면' : '일반면'}</span> <span class="tag">${esc(s.time)}</span>
     <div class="stats"><span>사기 ${s.morale}</span><span>라운드 ${s.rounds}</span></div>
-    <div class="small muted">준비: 피난기지 좀비 ${s.colonyZ}${s.otherZ ? ` · 다른 장소마다 좀비 ${s.otherZ}` : ''}${(s.helplessPerPlayer || s.helplessFlat) ? ` · 노약자 ${s.helplessPerPlayer * 2 + (s.helplessFlat || 0)}` : ''}</div>
+    <div class="small muted">준비: 피난기지 좀비 ${s.colonyZ}${s.otherZ ? ` · 다른 장소마다 좀비 ${s.otherZ}` : ''}${(s.helplessPerPlayer || s.helplessFlat) ? ` · 노약자 ${s.helplessPerPlayer * 2 + s.helplessFlat}` : ''}</div>
     <div style="margin-top:6px">${esc(s.victory)}</div>
   </div>`;
 }
@@ -270,7 +269,7 @@ function renderSetup() {
       <div class="card">${objBlock(g.settings.objective, g.settings.side)}<div style="margin-top:12px"><button data-a="setup.unready">다시 고르기</button></div></div></div>`;
     return;
   }
-  const hand = p.hand || [];
+  const hand = p.hand;
   $app.innerHTML = `
   <div class="lobby" style="max-width:1100px">
     <div class="brand"><h1>생존자 선택</h1><div class="sub">4명 중 3명을 고르고 ★로 리더를 정하세요 ${other.ready ? '· 상대는 준비 완료' : ''}</div></div>
@@ -362,7 +361,7 @@ function bannersHtml(g) {
   let h = '';
   if (g.pendingOverrun) {
     const o = g.pendingOverrun;
-    h += `<div class="banner red"><b>⚠ ${esc(LOC[o.loc].name)} 침입 ${o.count}회</b><span class="small">${o.victims && o.victims.length ? '사망: ' + o.victims.map(esc).join(', ') + ' (영향력 최저 순, 자동 처리)' : '생존자가 없어 효과 없음'}</span>
+    h += `<div class="banner red"><b>⚠ ${esc(LOC[o.loc].name)} 침입 ${o.count}회</b><span class="small">${o.victims.length ? '사망: ' + o.victims.map(esc).join(', ') + ' (영향력 최저 순, 자동 처리)' : '생존자가 없어 효과 없음'}</span>
       <button class="sm" data-a="overrun.clear">확인</button></div>`;
   }
   if (g.pendingBite) {
@@ -400,7 +399,7 @@ const M = {};
 M.surv = (g, { id }) => {
   const s = g.survivors[id]; if (!s) return null;
   const sv = SURV[id]; const mine = s.owner === me();
-  const fuel = (g.players[me()].hand || []).filter((c) => g.cards[c].t === 'fuel');
+  const fuel = g.players[me()].hand.filter((c) => g.cards[c].t === 'fuel');
   const z = s.loc === 'colony' ? g.locs.colony.entrances.reduce((a, e) => a + e.z, 0) : g.locs[s.loc].z;
   modal.wide = true;
   return twoCol(`${bigCard(survCardSrc(id), sv.name)}<div class="row" style="margin-top:8px;justify-content:center"><img class="portrait-lg p${s.owner}" src="${portraitSrc(id)}" alt=""><span class="on-card big">${woundTokens(s)}</span></div>`,
@@ -428,8 +427,8 @@ M.surv = (g, { id }) => {
         <button class="sm" data-a="surv.exposure" data-p='${J({ id })}'>위험노출 굴림</button>
         <span class="small muted">주사위는 직접 사용 표시하세요</span></div></section>
     <section><h4>부상</h4><div class="row">
-      <button class="sm" data-a="surv.wound" data-p='${J({ id, kind: 'wound', d: 1 })}'>부상 +1</button><button class="sm" data-a="surv.wound" data-p='${J({ id, kind: 'wound', d: -1 })}'>부상 −1</button>
-      <button class="sm" data-a="surv.wound" data-p='${J({ id, kind: 'frost', d: 1 })}'>동상 +1</button><button class="sm" data-a="surv.wound" data-p='${J({ id, kind: 'frost', d: -1 })}'>동상 −1</button></div></section>
+      ${pm('sm', 'surv.wound', { id, kind: 'wound' }, ['부상 +1', '부상 −1'])}
+      ${pm('sm', 'surv.wound', { id, kind: 'frost' }, ['동상 +1', '동상 −1'])}</div></section>
     <section><h4>장착 (${s.equip.length})</h4>
       ${s.equip.map((c) => { const t = TPL[g.cards[c].t]; const u = (s.equipUsed || []).includes(c); return `<div class="row" style="margin-bottom:4px"><span class="pill k-${t.kind}" style="color:var(--k);border-color:var(--k)">${esc(t.name)}</span><span class="small grow muted">${esc(t.text)}</span>
         ${t.once ? `<button class="sm" data-a="card.equipUsed" data-p='${J({ id: c, survivor: id })}'>${u ? '사용함 ✓' : '사용'}</button>` : ''}<button class="sm" data-ui="equipCard" data-p='${J({ id: c, survivor: id })}'>…</button></div>`; }).join('') || '<span class="faint small">없음</span>'}</section>
@@ -463,7 +462,7 @@ M.card = (g, { id }) => {
   modal.wide = true;
   const t = TPL[g.cards[id].t]; const o = g.cards[id].o;
   const big = bigCard(cardSrc(g, id), t.name);
-  if (!(g.players[me()].hand || []).includes(id)) return twoCol(big, `<h2>${esc(t.name)}</h2><div class="ability" style="margin-top:8px">${esc(t.text)}</div>`);
+  if (!g.players[me()].hand.includes(id)) return twoCol(big, `<h2>${esc(t.name)}</h2><div class="ability" style="margin-top:8px">${esc(t.text)}</div>`);
   const my = Object.keys(g.survivors).filter((s) => g.survivors[s].owner === me());
   const isMyTurn = g.stage === 'player' && g.turn === me();
   return twoCol(big, `<h2>${esc(t.name)}</h2>
@@ -527,16 +526,14 @@ M.objective = (g) => {
 
 M.fetch = (g, m) => {
   const src = m.src || 'waste';
-  let list = [];
-  if (src === 'waste') list = g.waste; else if (src === 'removed') list = g.removed;
-  const deckNote = src !== 'waste' && src !== 'removed';
+  const list = { waste: g.waste, removed: g.removed }[src]; // 없으면 비공개 장소 덱
   return `<h2>카드 찾기</h2><div class="small muted">크로스로드·능력 효과로 덱이나 더미에서 특정 카드를 가져올 때 씁니다.</div>
     <section><div class="row"><select id="fc-src">
       <option value="waste" ${src === 'waste' ? 'selected' : ''}>쓰레기장 (${g.waste.length})</option>
       <option value="removed" ${src === 'removed' ? 'selected' : ''}>게임에서 제거된 카드 (${g.removed.length})</option>
       ${OUTSIDE.map((l) => `<option value="${l.id}" ${src === l.id ? 'selected' : ''}>${esc(l.name)} 덱 (${g.locs[l.id].deckCount})</option>`).join('')}
     </select></div></section>
-    ${deckNote ? `<section><div class="small muted">장소 덱은 비공개라 여기서 고를 수 없습니다. 탐색을 시작한 뒤 "능력·장비로 1장 더"로 원하는 카드가 나올 때까지 넘기거나, 덱 내용이 필요하면 서로 합의해 진행하세요.</div><button class="sm" data-a="search.start" data-p='${J({ loc: src })}' data-close="1">${esc(LOC[src].name)} 덱 넘겨 보기 시작</button></section>`
+    ${!list ? `<section><div class="small muted">장소 덱은 비공개라 여기서 고를 수 없습니다. 탐색을 시작한 뒤 "능력·장비로 1장 더"로 원하는 카드가 나올 때까지 넘기거나, 덱 내용이 필요하면 서로 합의해 진행하세요.</div><button class="sm" data-a="search.start" data-p='${J({ loc: src })}' data-close="1">${esc(LOC[src].name)} 덱 넘겨 보기 시작</button></section>`
       : `<section><div class="row"><select id="fc-card" class="grow"><option value="">카드 선택</option>${[...list].reverse().map((c) => `<option value="${c}">${esc(TPL[g.cards[c].t].name)} · ${esc(KINDS[TPL[g.cards[c].t].kind])}</option>`).join('')}</select><button class="pri sm" data-ui="fetchCard">내 손으로</button></div></section>`}`;
 };
 
@@ -544,9 +541,12 @@ M.recruit = (g) => `<h2>생존자 합류</h2><div class="small muted">외부인 
   <section><div class="row"><select id="rc-id"><option value="">덱 맨 위 (무작위)</option>${DATA.survivors.filter((s) => !s.noncoop && !g.survivors[s.id] && !(g.dead || []).includes(s.id)).map((s) => `<option value="${s.id}">${esc(s.name)} (지정 · 덱에서 찾기)</option>`).join('')}</select>
   <select id="rc-to">${locOptions(g)}</select><button class="pri sm" data-ui="recruitGo">내 추종자로 추가</button></div></section>`;
 
-M.lure = (g) => `<h2>좀비 유인</h2><div class="small muted">주사위 1개(아무 눈)를 사용 표시한 뒤, 아무 장소의 좀비 2마리를 내 생존자가 있는 장소의 빈 입구 칸으로 옮깁니다.</div>
-  <section><div class="row"><span class="small">어디서</span><select id="lu-from">${DATA.game.locations.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select>
-  <span class="small">어디로</span><select id="lu-to">${DATA.game.locations.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select><button class="pri sm" data-ui="lureGo">2마리 옮기기</button></div></section>`;
+M.lure = () => {
+  const opts = DATA.game.locations.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  return `<h2>좀비 유인</h2><div class="small muted">주사위 1개(아무 눈)를 사용 표시한 뒤, 아무 장소의 좀비 2마리를 내 생존자가 있는 장소의 빈 입구 칸으로 옮깁니다.</div>
+  <section><div class="row"><span class="small">어디서</span><select id="lu-from">${opts}</select>
+  <span class="small">어디로</span><select id="lu-to">${opts}</select><button class="pri sm" data-ui="lureGo">2마리 옮기기</button></div></section>`;
+};
 
 M.rules = () => {
   modal.wide = true;
@@ -569,7 +569,6 @@ M.rules = () => {
 
 // ═══════════════════════ 실물 테이블 화면 (업로드 이미지 사용) ═══════════════════════
 const KIND_ICON = { weapon: '⚔', fuel: '⛽', book: '📖', food: '🥫', medicine: '✚', tool: '🔧', outsider: '👤' };
-const KIND_KEY = { '무기': 'weapon', '연료': 'fuel', '서적': 'book', '식량': 'food', '약': 'medicine', '도구': 'tool', '외부인': 'outsider' };
 const A_ = (p) => (p ? '/' + p : '');
 const tok = (k) => A_(DATA.images.tokens[k]);
 const cardSrc = (g, id) => A_(g.cards[id] && g.cards[id].img);
@@ -588,6 +587,9 @@ const CB = {
 // colony_occupants_21_spaces.jpg 512×1216 — 3열×7행
 const OCC = { x: [13.7, 46.9, 81.6], y: [7.6, 21.8, 36, 50.3, 64.6, 78.8, 92.9], d: 27 };
 const box = (r) => `left:${r.l}%;top:${r.t}%;width:${r.w}%;height:${r.h}%`;
+// ± 버튼 한 쌍: payload에 d: 1 / -1을 붙인다
+const pm = (cls, a, p, labels, titles = []) => [1, -1].map((d, i) =>
+  `<button class="${cls}" data-a="${a}" data-p='${J({ ...p, d })}'${titles[i] ? ` title="${titles[i]}"` : ''}>${labels[i]}</button>`).join('');
 
 function icard(id, g) {
   const t = TPL[g.cards[id].t];
@@ -615,6 +617,7 @@ function entranceSlots(z, b, cap) {
   for (let i = 0; i < cap; i++) h += `<span class="eslot">${i < z ? zTk() : i < z + b ? bTk() : ''}</span>`;
   return h;
 }
+const noiseSlots = (n, cap, alt) => Array.from({ length: cap }, (_, i) => `<span class="nslot">${i < n ? `<img src="${tok('noise')}" alt="${alt}">` : ''}</span>`).join('');
 
 function renderColony(g) {
   const col = g.locs.colony;
@@ -626,18 +629,18 @@ function renderColony(g) {
     occHtml += `<div class="occ-slot" style="left:${OCC.x[c]}%;top:${OCC.y[r]}%;width:${OCC.d}%">${items[i] || ''}</div>`;
   }
   const overflow = items.length > 21 ? `<div class="occ-over">+${items.length - 21}</div>` : '';
-  const ent = (i) => { const e = col.entrances[i]; return `<button class="gate" data-ui="loc" data-p='${J({ id: 'colony' })}' title="입구 ${i + 1}"><span class="gate-n">${i + 1}</span><span class="gate-slots">${entranceSlots(e.z, e.b, 3)}</span></button>`; };
+  const ent = (i) => { const e = col.entrances[i]; return `<button class="gate" data-ui="loc" data-p='${J({ id: 'colony' })}' title="입구 ${i + 1}"><span class="gate-n">${i + 1}</span><span class="gate-slots">${entranceSlots(e.z, e.b, LOC.colony.entranceSlots)}</span></button>`; };
   const side = OBJ[g.settings.objective].sides[g.settings.side];
   const objImg = A_(DATA.images.objectives[g.settings.objective]?.[g.settings.side]);
-  const trackBtns = (kind, key, cur, x) => Array.from({ length: 11 }, (_, v) =>
-    `<button class="track-hit" style="left:${x}%;top:${CB.trackY(v)}%" data-a="track" data-p='${J({ key, d: v - cur })}' title="${kind === 'round' ? '라운드' : '사기'} ${v}로"></button>`).join('');
+  const trackBtns = (key, cur, x) => Array.from({ length: 11 }, (_, v) =>
+    `<button class="track-hit" style="left:${x}%;top:${CB.trackY(v)}%" data-a="track" data-p='${J({ key, d: v - cur })}' title="${key === 'round' ? '라운드' : '사기'} ${v}로"></button>`).join('');
   const topWaste = g.waste.length ? g.waste[g.waste.length - 1] : null;
   const c = g.crisis ? CRISIS[g.crisis.id] : null;
   return `<section class="colony-area">
     <div class="gates">${ent(0)}${ent(1)}${ent(2)}</div>
     <div class="colony-mid">
       <div class="cboard"><img class="cboard-img" src="${A_(DATA.images.board.colony)}" alt="피난기지 보드">
-        ${trackBtns('round', 'round', g.round, CB.roundX)}${trackBtns('morale', 'morale', g.morale, CB.moraleX)}
+        ${trackBtns('round', g.round, CB.roundX)}${trackBtns('morale', g.morale, CB.moraleX)}
         <img class="marker" src="${tok('round')}" style="left:${CB.roundX}%;top:${CB.trackY(g.round)}%" alt="라운드 마커" title="라운드 ${g.round}">
         <img class="marker" src="${tok('morale')}" style="left:${CB.moraleX}%;top:${CB.trackY(g.morale)}%" alt="사기 마커" title="사기 ${g.morale}">
         <button class="cb-zone" style="${box(CB.objective)}" data-ui="objective" title="공동목표">${objImg ? `<img class="zone-card" src="${objImg}" alt="공동목표">` : ''}
@@ -655,19 +658,21 @@ function renderColony(g) {
     <div class="supply-row">
       <div class="supply"><span class="sup-lab">식량 공급처</span>
         <span class="pile">${Array.from({ length: Math.min(g.food, 12) }, (_, i) => `<img src="${tok('food')}" style="--i:${i}" alt="식량">`).join('')}</span><b class="sup-n">${g.food}</b>
-        <button class="tbtn" data-a="track" data-p='${J({ key: 'food', d: 1 })}' title="식량 +1">+</button><button class="tbtn" data-a="track" data-p='${J({ key: 'food', d: -1 })}' title="식량 −1">−</button>
+        ${pm('tbtn', 'track', { key: 'food' }, ['+', '−'], ['식량 +1', '식량 −1'])}
         <span class="sup-need">이번 라운드 필요 ${g.calc.foodNeeded}</span></div>
       <div class="supply"><span class="sup-lab">굶주림</span>
         <span class="pile">${Array.from({ length: g.starvation }, (_, i) => `<img src="${tok('starve')}" style="--i:${i}" alt="굶주림">`).join('') || '<span class="faint tiny">없음</span>'}</span>
-        <button class="tbtn" data-a="track" data-p='${J({ key: 'starvation', d: 1 })}'>+</button><button class="tbtn" data-a="track" data-p='${J({ key: 'starvation', d: -1 })}'>−</button></div>
+        ${pm('tbtn', 'track', { key: 'starvation' }, ['+', '−'])}</div>
       <div class="supply"><span class="sup-lab">노약자</span><img class="sup-ic" src="${tok('helpless')}" alt=""><b class="sup-n">${g.helpless}</b>
-        <button class="tbtn" data-a="track" data-p='${J({ key: 'helpless', d: 1 })}'>+</button><button class="tbtn" data-a="track" data-p='${J({ key: 'helpless', d: -1 })}'>−</button></div>
+        ${pm('tbtn', 'track', { key: 'helpless' }, ['+', '−'])}</div>
+      ${side.tracker === 'samples' ? `<div class="supply"><span class="sup-lab">샘플</span><b class="sup-n">${g.samples}/${side.targetPerPlayer * 2}</b>
+        ${pm('tbtn', 'track', { key: 'samples' }, ['+', '−'], ['샘플 +1', '샘플 −1'])}</div>` : ''}
     </div>
   </section>`;
 }
 
 function symbolsHtml(l) {
-  return l.symbols.split('>').map((s) => s.trim()).map((s) => `<span class="sym k-${KIND_KEY[s]}" title="${esc(s)}">${esc(s)}</span>`).join('');
+  return l.symbols.split('>').map((s) => s.trim()).map((s) => `<span class="sym k-${Object.keys(KINDS).find((k) => KINDS[k] === s)}" title="${esc(s)}">${esc(s)}</span>`).join('');
 }
 
 function renderLocation(g, l) {
@@ -685,7 +690,7 @@ function renderLocation(g, l) {
     </div>
     <button class="lc-ent" data-ui="loc" data-p='${J({ id: l.id })}'>
       <span class="lc-lab">입구</span><span class="gate-slots">${entranceSlots(s.z, s.b, l.entranceSlots)}</span>
-      <span class="lc-lab">소음</span><span class="noise-slots">${Array.from({ length: l.noise }, (_, i) => `<span class="nslot">${i < s.noise ? `<img src="${tok('noise')}" alt="소음">` : ''}</span>`).join('')}</span>
+      <span class="lc-lab">소음</span><span class="noise-slots">${noiseSlots(s.noise, l.noise, '소음')}</span>
     </button>
   </section>`;
 }
@@ -734,7 +739,7 @@ function renderPlayerArea(g, seat) {
       : `<span class="xr-hold back" title="크로스로드(비공개)"><span class="xr-back">CROSSROADS</span><span class="xr-tag">상대가 든 크로스로드</span></span>`;
   }
   const hand = (mine || p.hand)
-    ? (p.hand || []).map((c) => icard(c, g)).join('')
+    ? p.hand.map((c) => icard(c, g)).join('')
     : Array.from({ length: p.handCount }, () => itemBack()).join('');
   return `<section class="parea ${mine ? 'mine' : 'theirs'} p${seat} ${isTurn ? 'turn' : ''}">
     <header class="pa-head"><span class="dot ${R.seats[seat]?.online ? 'on' : ''}"></span><b>${esc(pname(seat))}${mine ? ' (나)' : ''}</b>
@@ -821,7 +826,7 @@ M.loc = (g, { id }) => {
   if (id === 'colony') {
     const es = g.locs.colony.entrances;
     return `<h2>피난기지</h2><div class="small muted">좀비는 입구 1→6 순서로 1마리씩 놓입니다. 칸이 차면 바리케이드가 부서지고, 바리케이드도 없으면 침입이 일어납니다.</div>
-      <section><h4>입구</h4><div class="ent-edit">${es.map((e, i) => `<div class="ent-row"><span class="gate-n">${i + 1}</span><span class="gate-slots">${entranceSlots(e.z, e.b, 3)}</span>
+      <section><h4>입구</h4><div class="ent-edit">${es.map((e, i) => `<div class="ent-row"><span class="gate-n">${i + 1}</span><span class="gate-slots">${entranceSlots(e.z, e.b, LOC.colony.entranceSlots)}</span>
         <button class="sm" data-a="zombie" data-p='${J({ loc: 'colony', d: -1, entrance: i })}'>좀비 −</button>
         <button class="sm" data-a="barricade" data-p='${J({ loc: 'colony', d: 1, entrance: i })}'>바리케이드 +</button>
         <button class="sm" data-a="barricade" data-p='${J({ loc: 'colony', d: -1, entrance: i })}'>바리케이드 −</button></div>`).join('')}</div></section>
@@ -834,10 +839,10 @@ M.loc = (g, { id }) => {
     <div class="row small muted" style="margin-top:8px">많이 나오는 순서: <span class="syms">${symbolsHtml(l)}</span></div>
     <div class="row" style="margin-top:8px"><span class="stat"><b>${survsAt(g, id).length}/${l.slots}</b><span>생존자 칸</span></span><span class="stat"><b>${s.z}</b><span>좀비</span></span><span class="stat"><b>${s.b}</b><span>바리케이드</span></span><span class="stat"><b>${s.noise}/${l.noise}</b><span>소음</span></span><span class="stat"><b>${s.deckCount}</b><span>아이템 덱</span></span></div>
     <section><h4>입구 (${l.entranceSlots}칸)</h4><div class="row"><span class="gate-slots big">${entranceSlots(s.z, s.b, l.entranceSlots)}</span></div>
-      <div class="row" style="margin-top:6px"><button class="sm" data-a="zombie" data-p='${J({ loc: id, d: 1 })}'>좀비 +</button><button class="sm" data-a="zombie" data-p='${J({ loc: id, d: -1 })}'>좀비 −</button>
+      <div class="row" style="margin-top:6px">${pm('sm', 'zombie', { loc: id }, ['좀비 +', '좀비 −'])}
       <button class="sm" data-ui="addZ" data-p='${J({ loc: id })}'>좀비 +N</button>
-      <button class="sm" data-a="barricade" data-p='${J({ loc: id, d: 1 })}'>바리케이드 +</button><button class="sm" data-a="barricade" data-p='${J({ loc: id, d: -1 })}'>바리케이드 −</button></div></section>
-    <section><h4>소음</h4><div class="row"><span class="noise-slots big">${Array.from({ length: l.noise }, (_, i) => `<span class="nslot">${i < s.noise ? `<img src="${tok('noise')}" alt="">` : ''}</span>`).join('')}</span><button class="sm" data-a="noise" data-p='${J({ loc: id, d: 1 })}'>소음 +</button><button class="sm" data-a="noise" data-p='${J({ loc: id, d: -1 })}'>소음 −</button></div></section>
+      ${pm('sm', 'barricade', { loc: id }, ['바리케이드 +', '바리케이드 −'])}</div></section>
+    <section><h4>소음</h4><div class="row"><span class="noise-slots big">${noiseSlots(s.noise, l.noise, '')}</span>${pm('sm', 'noise', { loc: id }, ['소음 +', '소음 −'])}</div></section>
     <section><div class="small muted">탐색은 이 장소에 있는 내 생존자 말을 눌러서 시작하세요.</div></section>`;
 };
 

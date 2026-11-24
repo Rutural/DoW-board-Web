@@ -1,11 +1,4 @@
-# 코드 변경 → 테스트 → 이미지 빌드 → Lightsail 배포(실패 시 자동 롤백)
-#
-# 필요한 설정 (저장소 Settings → Secrets and variables → Actions)
-#   Secrets:   LIGHTSAIL_HOST     서버 고정 IP 또는 도메인
-#              LIGHTSAIL_USER     SSH 사용자 (Amazon Linux는 ec2-user, Ubuntu는 ubuntu)
-#              LIGHTSAIL_SSH_KEY  SSH 개인키 (.pem 내용)
-#   Variables: DEPLOY_ENABLED     'true'로 두면 main 병합 시 배포 (없으면 테스트·빌드까지만)
-#              DOW_DOMAIN         (선택) 도메인. 있으면 서버에 Caddy를 띄워 HTTPS로 서비스
+# 코드 변경 → 테스트 → 이미지 빌드 → Lightsail 배포(실패 시 자동 롤백). 필요한 Secrets·Variables는 README "처음 한 번 설정" 참고
 name: CI/CD
 
 on:
@@ -42,11 +35,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4   # simulate.js·parity_check.js 실행용 (Node 내장 모듈만 써서 npm ci 불필요)
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -95,7 +86,6 @@ jobs:
       - uses: actions/checkout@v4
       - id: meta
         run: |
-          echo "repo=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -108,9 +98,7 @@ jobs:
           context: .
           push: true
           build-args: GIT_SHA=${{ github.sha }}
-          tags: |
-            ${{ steps.meta.outputs.image }}
-            ${{ steps.meta.outputs.repo }}:latest
+          tags: ${{ steps.meta.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -143,7 +131,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_lightsail "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "echo '$TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null && \
-             chmod +x /opt/dow/*.sh && DOW_DOMAIN='$DOMAIN' /opt/dow/deploy.sh '$IMAGE' '${{ github.sha }}'; rc=\$?; docker logout ghcr.io >/dev/null; exit \$rc"
+             chmod +x /opt/dow/*.sh && DOW_DOMAIN='$DOMAIN' /opt/dow/deploy.sh '$IMAGE'; rc=\$?; docker logout ghcr.io >/dev/null; exit \$rc"
       - name: 외부에서 버전 확인
         env:
           URL: ${{ vars.DOW_DOMAIN && format('https://{0}', vars.DOW_DOMAIN) || format('http://{0}', secrets.LIGHTSAIL_HOST) }}

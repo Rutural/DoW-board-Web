@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Lightsail 서버에서 실행: 새 이미지로 교체하고, 헬스체크에 실패하면 직전 이미지로 자동 롤백한다.
-# 사용법: deploy.sh <이미지:태그> [기대 버전(커밋 sha)]
-#   예) deploy.sh ghcr.io/me/dow:3f2a1bc 3f2a1bc...
+# 사용법: deploy.sh <이미지:태그>   예) deploy.sh ghcr.io/me/dow:<커밋sha>
+#   헬스체크는 /healthz 의 version(빌드 때 이미지에 넣은 GIT_SHA)이 태그와 같은지까지 확인한다.
 # 상태 파일: $DOW_HOME/current, $DOW_HOME/previous, $DOW_HOME/deploys.log
 # HTTPS : DOW_DOMAIN=도메인 을 주면(한 번 주면 $DOW_HOME/domain 에 기억) 앞에 Caddy 를 띄워
 #         80·443 을 받고 인증서(Let's Encrypt)를 자동 발급·갱신한다. 앱은 127.0.0.1:3000 에만 연다.
 set -euo pipefail
 
 IMAGE="${1:?이미지:태그를 지정하세요}"
-EXPECT="${2:-}"
 DOW_HOME="${DOW_HOME:-/opt/dow}"
 NAME=dow-app
 NET=dow-net
@@ -29,13 +28,12 @@ HEALTH_URL="http://127.0.0.1:${HOST_PORT}/healthz"
 log() { echo "[$(date -u +%FT%TZ)] $*" | tee -a "$DOW_HOME/deploys.log"; }
 
 run_image() { # $1=이미지
-  local img="$1" sha="${1##*:}"
+  local img="$1"
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET" >/dev/null
   docker run -d --name "$NAME" --restart unless-stopped \
     --network "$NET" -p "$PUBLISH" \
     -v "$DOW_HOME/saves:/app/saves" \
-    -e GIT_SHA="$sha" \
     $( [[ -f "$DOW_HOME/env" ]] && echo "--env-file $DOW_HOME/env" ) \
     --stop-timeout 20 \
     "$img" >/dev/null
@@ -86,7 +84,7 @@ docker stop "$NAME" >/dev/null 2>&1 || true
 run_image "$IMAGE"
 
 # 3) 헬스체크 (버전까지 확인) → 통과하면 HTTPS 프록시 확인
-if healthy "${EXPECT:-${IMAGE##*:}}"; then
+if healthy "${IMAGE##*:}"; then
   ensure_proxy
   [[ -n "$CURRENT" && "$CURRENT" != "$IMAGE" ]] && echo "$CURRENT" > "$DOW_HOME/previous"
   echo "$IMAGE" > "$DOW_HOME/current"

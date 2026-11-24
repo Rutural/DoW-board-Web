@@ -40,6 +40,12 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 
 class GameError extends Error {}
 const fail = (m) => { throw new GameError(m); };
+// 배열에서 x를 꺼낸다 (없으면 msg로 실패)
+function pluck(arr, x, msg) {
+  const k = arr ? arr.indexOf(x) : -1;
+  if (k < 0) fail(msg);
+  arr.splice(k, 1); return x;
+}
 
 // ───────────────────────── 생성 ─────────────────────────
 
@@ -71,7 +77,7 @@ function newGame(settings) {
     log: [], end: null,
   };
   for (const l of LOCS) {
-    if (l.id === 'colony') g.locs.colony = { entrances: Array.from({ length: 6 }, () => ({ z: 0, b: 0 })) };
+    if (l.id === 'colony') g.locs.colony = { entrances: Array.from({ length: l.entrances }, () => ({ z: 0, b: 0 })) };
     else g.locs[l.id] = { z: 0, b: 0, noise: 0, deck: [], searched: false };
   }
   return g;
@@ -103,7 +109,7 @@ function setupGame(g) {
   }
   g.morale = obj.morale;
   g.round = obj.rounds;
-  g.helpless = (obj.helplessPerPlayer || 0) * 2 + (obj.helplessFlat || 0);
+  g.helpless = obj.helplessPerPlayer * 2 + obj.helplessFlat;
   log(g, `공동목표: ${objectiveTitle(g)} (${g.settings.side === 'hard' ? '하드코어' : '일반'}면) · 사기 ${g.morale} · 라운드 ${g.round}`);
   log(g, '각자 생존자 4명 중 3명을 고르고 그중 1명을 리더로 정하세요.');
 }
@@ -162,7 +168,7 @@ const hasRoom = (slot, loc) => slot.z + slot.b < LOC[loc].entranceSlots;
 function placeZombies(g, loc, n, why) {
   let broken = 0, overruns = 0;
   for (let i = 0; i < n; i++) {
-    const slot = loc === 'colony' ? g.locs.colony.entrances[i % 6] : g.locs[loc];
+    const slot = loc === 'colony' ? g.locs.colony.entrances[i % LOC.colony.entrances] : g.locs[loc];
     if (hasRoom(slot, loc)) slot.z++;
     else if (slot.b > 0) { slot.b--; broken++; }
     else overruns++;
@@ -254,7 +260,7 @@ function endTurn(g) {
   // 발동하지 않은 크로스로드는 덱 맨 아래
   if (g.xr && !g.xr.revealed) { g.xrDeck.push(g.xr.id); log(g, '발동하지 않은 크로스로드를 덱 맨 아래로 돌려놓았습니다.'); }
   g.xr = null;
-  for (const p of g.players) if (p.search) { returnSearch(g, p); }
+  for (const p of g.players) if (p.search) { g.locs[p.search.loc].deck.push(...p.search.cards); p.search = null; }
   g.turnCount++;
   if (g.turnCount >= 2) {
     g.stage = 'colony';
@@ -268,7 +274,7 @@ function endTurn(g) {
 
 function checkDeath(g, id) {
   const s = g.survivors[id];
-  if (s && s.wounds + s.frost >= (SURV[id].maxWounds || 3)) killSurvivor(g, id, '부상 누적');
+  if (s.wounds + s.frost >= FEAT.maxWounds(SURV[id])) killSurvivor(g, id, '부상 누적');
 }
 
 function killSurvivor(g, id, why, noMorale) {
@@ -279,8 +285,7 @@ function killSurvivor(g, id, why, noMorale) {
     if (s.loc === 'colony') g.players[s.owner].hand.push(...s.equip);
     else { g.locs[s.loc].deck.push(...s.equip); shuffle(g.locs[s.loc].deck); }
   }
-  const wasLeader = s.leader;
-  const owner = s.owner;
+  const { owner } = s;
   delete g.survivors[id];
   g.dead = g.dead || [];
   g.dead.push(id);
@@ -296,7 +301,7 @@ function killSurvivor(g, id, why, noMorale) {
       addSurvivor(g, nid, owner, 'colony', true);
       log(g, `P${owner + 1}의 마지막 생존자를 잃었습니다. 손패를 모두 제거하고 ${SURV[nid].name}이(가) 새 리더가 됩니다.`);
     }
-  } else if (wasLeader && mine.length) {
+  } else if (s.leader && mine.length) {
     g.players[owner].needLeader = true;
     log(g, `P${owner + 1}: 리더를 잃었습니다. 추종자 중 새 리더를 정하세요.`);
   }
@@ -316,13 +321,6 @@ function endGame(g, why, win) {
 function log(g, text) {
   g.log.push({ t: Date.now(), text });
   if (g.log.length > 400) g.log.splice(0, g.log.length - 400);
-}
-
-function returnSearch(g, p) {
-  const s = p.search;
-  if (!s) return;
-  g.locs[s.loc].deck.push(...s.cards);
-  p.search = null;
 }
 
 function exposureRoll() { return EXPOSURE[rnd(12)]; }
@@ -394,24 +392,17 @@ A['surv.move'] = (g, seat, { id, to, exposure }) => {
   if (locOccupancy(g, to) >= locCapacity(to)) fail(`${LOC[to].name}에 빈 생존자 칸이 없습니다.`);
   const from = s.loc;
   s.loc = to; s.moved = true;
-  let msg = `${SURV[id].name}: ${LOC[from].name} → ${LOC[to].name}`;
-  if (exposure === 'roll') {
-    const r = exposureRoll();
-    msg += ` · 위험노출 굴림: ${EXPOSURE_KO[r]}`;
-    log(g, msg);
-    applyExposure(g, id, r);
-    return;
-  }
-  if (exposure === 'fuel') msg += ' (연료 사용 · 굴림 없음)';
-  if (exposure === 'none') msg += ' (굴림 없음)';
-  log(g, msg);
+  const r = exposure === 'roll' && exposureRoll();
+  const note = r ? ` · 위험노출 굴림: ${EXPOSURE_KO[r]}` : exposure === 'fuel' ? ' (연료 사용 · 굴림 없음)' : exposure === 'none' ? ' (굴림 없음)' : '';
+  log(g, `${SURV[id].name}: ${LOC[from].name} → ${LOC[to].name}${note}`);
+  if (r) applyExposure(g, id, r);
 };
 
 // 동상 면역(하먼·설피): 동상 대신 일반 부상
 const frostProof = (g, id) => id === 'harman' || g.survivors[id].equip.some((c) => g.cards[c].t === 'snowshoes');
 
 function applyExposure(g, id, r) {
-  const s = g.survivors[id]; if (!s) return;
+  const s = g.survivors[id];
   if (r === 'bite' && SURV[id].animal) { log(g, '스파키: 물림을 부상으로 취급'); r = 'wound'; }
   if (r === 'frost' && frostProof(g, id)) { log(g, '동상 대신 일반 부상'); r = 'wound'; }
   if (r === 'wound') { s.wounds++; checkDeath(g, id); }
@@ -489,9 +480,7 @@ A['surv.recruit'] = (g, seat, { id, to }) => {
   // 생존자 덱 맨 위(또는 지정 생존자)를 추종자로 추가
   const loc = to || 'colony';
   if (locOccupancy(g, loc) >= locCapacity(loc)) fail(`${LOC[loc].name}에 빈 생존자 칸이 없습니다.`);
-  let sid = id;
-  if (sid) { const k = g.survivorDeck.indexOf(sid); if (k < 0) fail('생존자 덱에 없는 생존자입니다.'); g.survivorDeck.splice(k, 1); }
-  else sid = g.survivorDeck.shift();
+  const sid = id ? pluck(g.survivorDeck, id, '생존자 덱에 없는 생존자입니다.') : g.survivorDeck.shift();
   if (!sid) fail('생존자 덱이 비었습니다.');
   addSurvivor(g, sid, seat, loc, false);
   log(g, `P${seat + 1}: ${SURV[sid].name} 합류 (${LOC[loc].name})`);
@@ -561,8 +550,9 @@ A['search.start'] = (g, seat, { loc, survivor }) => {
   g.locs[loc].searched = true;
   log(g, `P${seat + 1}: ${survivor ? SURV[survivor].name + '(으)로 ' : ''}${LOC[loc].name} 탐색`);
 };
+function searcher(g, seat) { const p = g.players[seat]; if (!p.search) fail('탐색 중이 아닙니다.'); return p; }
 A['search.more'] = (g, seat, { noise }) => {
-  const p = g.players[seat]; const s = p.search; if (!s) fail('탐색 중이 아닙니다.');
+  const s = searcher(g, seat).search;
   const l = g.locs[s.loc];
   if (noise) {
     if (l.noise >= LOC[s.loc].noise) fail('빈 소음 칸이 없습니다.');
@@ -573,7 +563,7 @@ A['search.more'] = (g, seat, { noise }) => {
   s.cards.push(l.deck.shift());
 };
 A['search.take'] = (g, seat, { ids }) => {
-  const p = g.players[seat]; const s = p.search; if (!s) fail('탐색 중이 아닙니다.');
+  const p = searcher(g, seat); const s = p.search;
   if (!Array.isArray(ids) || !ids.length || !ids.every((x) => s.cards.includes(x))) fail('가져갈 카드를 고르세요.');
   p.hand.push(...ids);
   const rest = s.cards.filter((x) => !ids.includes(x));
@@ -583,19 +573,15 @@ A['search.take'] = (g, seat, { ids }) => {
 };
 
 // 손패
-function takeFromHand(g, seat, id) {
-  const h = g.players[seat].hand; const k = h.indexOf(id);
-  if (k < 0) fail('손에 없는 카드입니다.');
-  h.splice(k, 1); return id;
-}
+const takeFromHand = (g, seat, id) => pluck(g.players[seat].hand, id, '손에 없는 카드입니다.');
 const cardName = (g, id) => TPL[g.cards[id].t].name;
 
 A['card.play'] = (g, seat, { id, target }) => {
+  const t = g.players[seat].hand.includes(id) && TPL[g.cards[id].t]; // 손에 없으면 takeFromHand가 실패시킨다
+  if (t.use === 'equip' && !g.survivors[target]) fail('장착할 생존자를 고르세요.');
   takeFromHand(g, seat, id);
-  const t = TPL[g.cards[id].t];
   if (t.use === 'equip') {
-    const s = g.survivors[target]; if (!s) { g.players[seat].hand.push(id); fail('장착할 생존자를 고르세요.'); }
-    s.equip.push(id);
+    g.survivors[target].equip.push(id);
     log(g, `P${seat + 1}: ${t.name}을(를) ${SURV[target].name}에게 장착`);
     return;
   }
@@ -617,10 +603,8 @@ A['card.remove'] = (g, seat, { id }) => { takeFromHand(g, seat, id); g.removed.p
 A['card.give'] = (g, seat, { id }) => { takeFromHand(g, seat, id); g.players[1 - seat].hand.push(id); log(g, `P${seat + 1} → P${2 - seat}: ${cardName(g, id)} 전달 (요청 카드는 받은 사람이 즉시 사용)`); };
 A['card.contribute'] = (g, seat, { id, from }) => {
   if (!g.crisis) fail('현재 위기가 없습니다.');
-  if (from) { // 장착 카드 기여
-    const s = g.survivors[from]; const k = s ? s.equip.indexOf(id) : -1; if (k < 0) fail('장착 카드가 아닙니다.');
-    s.equip.splice(k, 1);
-  } else takeFromHand(g, seat, id);
+  if (from) pluck(g.survivors[from]?.equip, id, '장착 카드가 아닙니다.'); // 장착 카드 기여
+  else takeFromHand(g, seat, id);
   g.crisis.contrib.push({ id, by: seat });
   log(g, `P${seat + 1}: 위기에 카드 1장을 뒷면으로 기여 (총 ${g.crisis.contrib.length}장)`);
 };
@@ -631,21 +615,21 @@ A['card.objective'] = (g, seat, { id }) => {
   log(g, `P${seat + 1}: ${cardName(g, id)}을(를) 공동목표 아래에 놓음${c.o === 'start' ? ' (⚠ 시작 아이템은 세지 않는 목표가 많습니다)' : ''}`);
 };
 A['card.unequip'] = (g, seat, { id, survivor, to }) => {
-  const s = g.survivors[survivor]; const k = s ? s.equip.indexOf(id) : -1; if (k < 0) fail('장착 카드가 아닙니다.');
-  s.equip.splice(k, 1);
+  const s = g.survivors[survivor];
+  pluck(s?.equip, id, '장착 카드가 아닙니다.');
   const dest = { waste: [g.waste, '쓰레기장'], removed: [g.removed, '게임에서 제거'], hand: [g.players[s.owner].hand, '손으로'] };
   const [arr, where] = dest[Object.hasOwn(dest, to) ? to : 'hand'];
   arr.push(id); log(g, `${SURV[survivor].name}의 ${cardName(g, id)} → ${where}`);
 };
 A['card.transfer'] = (g, seat, { id, from, to }) => {
   const s = g.survivors[from]; const t = g.survivors[to];
-  const k = s ? s.equip.indexOf(id) : -1; if (k < 0 || !t) fail('대상을 확인하세요.');
+  if (!t || !s?.equip.includes(id)) fail('대상을 확인하세요.');
   if (s.loc !== t.loc) fail('같은 장소의 생존자에게만 긴급 전달할 수 있습니다.');
-  s.equip.splice(k, 1); t.equip.push(id);
+  pluck(s.equip, id); t.equip.push(id);
   log(g, `긴급 전달: ${SURV[from].name} → ${SURV[to].name} (${cardName(g, id)})`);
 };
 A['card.equipUsed'] = (g, seat, { id, survivor }) => {
-  const s = g.survivors[survivor]; if (!s) fail('생존자 없음');
+  const s = ownSurv(g, seat, survivor);
   s.equipUsed = s.equipUsed || [];
   const k = s.equipUsed.indexOf(id);
   if (k >= 0) s.equipUsed.splice(k, 1); else { s.equipUsed.push(id); log(g, `${SURV[survivor].name}: ${cardName(g, id)} 사용`); }
@@ -653,14 +637,10 @@ A['card.equipUsed'] = (g, seat, { id, survivor }) => {
 A['hand.reveal'] = (g, seat) => { g.players[seat].handOpen = !g.players[seat].handOpen; };
 
 // 덱에서 찾기(크로스로드 효과 등)
-A['deck.fetch'] = (g, seat, { loc, id, source }) => {
-  let arr;
-  if (source === 'waste') arr = g.waste; else if (source === 'removed') arr = g.removed; else arr = g.locs[loc] && g.locs[loc].deck;
-  if (!arr) fail('덱 없음');
-  const k = arr.indexOf(id); if (k < 0) fail('그 카드가 없습니다.');
-  arr.splice(k, 1); g.players[seat].hand.push(id);
-  if (!source) shuffle(arr);
-  log(g, `P${seat + 1}: ${source === 'waste' ? '쓰레기장' : source === 'removed' ? '제거 더미' : LOC[loc].name + ' 덱'}에서 ${cardName(g, id)}을(를) 찾아 손에 넣음${source ? '' : ' (덱을 섞음)'}`);
+A['deck.fetch'] = (g, seat, { id, source }) => {
+  const arr = source === 'waste' ? g.waste : source === 'removed' ? g.removed : fail('덱 없음');
+  g.players[seat].hand.push(pluck(arr, id, '그 카드가 없습니다.'));
+  log(g, `P${seat + 1}: ${source === 'waste' ? '쓰레기장' : '제거 더미'}에서 ${cardName(g, id)}을(를) 찾아 손에 넣음`);
 };
 A['waste.clean'] = (g, seat, { n }) => {
   n = n === 5 ? 5 : 3;
@@ -670,25 +650,23 @@ A['waste.clean'] = (g, seat, { n }) => {
 };
 
 // 크로스로드
+function heldXr(g, seat, msg) { const x = g.xr; if (!x) fail('크로스로드 없음'); if (x.by !== seat) fail(msg); return x; }
+function liveXr(g) { const x = g.xr; if (!x || !x.revealed) fail('발동된 크로스로드가 없습니다.'); return x; }
 A['xr.reveal'] = (g, seat) => {
-  const x = g.xr; if (!x) fail('크로스로드 없음');
-  if (x.by !== seat) fail('크로스로드를 든 사람만 발동시킬 수 있습니다.');
+  const x = heldXr(g, seat, '크로스로드를 든 사람만 발동시킬 수 있습니다.');
   x.revealed = true;
   log(g, `⚡ 크로스로드 발동: 「${XR[x.id].name}」`);
 };
 A['xr.choose'] = (g, seat, { i }) => {
-  const x = g.xr; if (!x || !x.revealed) fail('발동된 크로스로드가 없습니다.');
+  const x = liveXr(g);
   const o = XR[x.id].options[i]; if (!o) fail('선택지 없음');
   x.chosen = i;
   log(g, `「${XR[x.id].name}」 → ${o.label}: ${o.effect}`);
   log(g, '효과는 보드에서 직접 적용하세요.');
 };
-A['xr.done'] = (g) => {
-  const x = g.xr; if (!x || !x.revealed) fail('발동된 크로스로드가 없습니다.');
-  g.xr = null;
-};
+A['xr.done'] = (g) => { liveXr(g); g.xr = null; };
 A['xr.bottom'] = (g, seat) => {
-  const x = g.xr; if (!x) fail('크로스로드 없음'); if (x.by !== seat) fail('든 사람만');
+  const x = heldXr(g, seat, '든 사람만');
   g.xrDeck.push(x.id); g.xr = null; log(g, '크로스로드를 덱 맨 아래로 돌려놓았습니다.');
 };
 
@@ -707,8 +685,8 @@ A['crisis.resolve'] = (g, seat) => {
   const result = score < need ? 'fail' : score >= need + 2 ? 'bonus' : 'pass';
   g.removed.push(...cards);
   g.crisisResolved = { id: g.crisis.id, cards: shown, score, need, result };
-  const tr = g.trace && g.trace[g.trace.length - 1];
-  if (tr && tr.crisis === g.crisis.id) tr.crisis_result = result;
+  const tr = g.trace.at(-1); // 위기는 beginRound에서 기록과 함께 나오므로 항상 있다
+  if (tr.crisis === g.crisis.id) tr.crisis_result = result;
   g.crisisPile.push(g.crisis.id);
   log(g, `위기 「${c.name}」 해결: ${shown.map((s) => cardName(g, s.id) + (s.ok ? '(+1)' : '(−1)')).join(', ') || '기여 없음'} → 점수 ${score} / 필요 ${need}`);
   if (result === 'fail') log(g, `✖ 위기 실패! 실패 효과를 적용하세요: ${c.fail}`);
@@ -818,7 +796,7 @@ function checkObjective(g) {
     }
     case 'stockpile': {
       const per = hard ? 3 : 2;
-      const parts = [Math.min(1, g.food / (per * 2)), g.locs.colony.entrances.filter((e) => e.b >= 1).length / 6,
+      const parts = [Math.min(1, g.food / (per * 2)), g.locs.colony.entrances.filter((e) => e.b >= 1).length / LOC.colony.entrances,
         Math.min(1, cnt('medicine') / 2), Math.min(1, cnt('tool') / 2), Math.min(1, cnt('fuel') / 2)];
       return { done: parts.every((x) => x >= 1), failed: false, progress: parts.reduce((a, b) => a + b, 0) / parts.length };
     }
@@ -854,43 +832,45 @@ function checkObjective(g) {
   return { done: false, failed: false, progress: 0 };
 }
 
+// 좀비 3마리씩 두 장소에 놓는 위기
+const CRISIS_ZOMBIE_PAIRS = { watching: ['library', 'grocery'], march: ['school', 'police'], killer: ['hospital', 'gas'] };
+
 // 위기 실패 효과 자동 적용 (선택이 필요한 부분은 정해진 기본값으로 처리)
 function applyCrisisFail(g, cid) {
   const byInf = (asc) => Object.keys(g.survivors).sort((a, b) => (asc ? 1 : -1) * (SURV[a].inf - SURV[b].inf));
   const wound = (id, frost) => {
-    const s = g.survivors[id]; if (!s) return;
+    const s = g.survivors[id];
     if (frost && !frostProof(g, id)) s.frost++; else s.wounds++;
     checkDeath(g, id);
   };
+  const zombies = (loc, n) => placeZombies(g, loc, n, '위기 실패');
   log(g, `위기 실패 효과 자동 적용: ${CRISIS[cid].fail}`);
   switch (cid) {
     case 'overpop': byInf(true).slice(0, 2).forEach((id) => killSurvivor(g, id, '인구 과잉')); break;
     case 'exhaust': byInf(false).slice(0, 5).forEach((id) => wound(id, true)); break;
-    case 'strength': g.locs.colony.entrances.forEach((e) => { e.b = 0; }); placeZombies(g, 'colony', 10, '위기 실패'); break;
-    case 'watching': placeZombies(g, 'library', 3, '위기 실패'); placeZombies(g, 'grocery', 3, '위기 실패'); break;
-    case 'march': placeZombies(g, 'school', 3, '위기 실패'); placeZombies(g, 'police', 3, '위기 실패'); break;
+    case 'strength': g.locs.colony.entrances.forEach((e) => { e.b = 0; }); zombies('colony', 10); break;
+    case 'watching': case 'march': case 'killer': CRISIS_ZOMBIE_PAIRS[cid].forEach((l) => zombies(l, 3)); break;
     case 'spoil': g.effects.push('식량 부패: 다음 라운드 끝까지 식량 토큰으로 주사위를 올릴 수 없음'); changeMorale(g, -1); break;
     case 'hail':
       for (let s = 0; s < 2; s++) {
-        const r = d6(); const mine = byInf(true).filter((id) => g.survivors[id] && g.survivors[id].owner === s);
+        const r = d6(); const mine = byInf(true).filter((id) => g.survivors[id].owner === s);
         log(g, `우박 폭풍: P${s + 1} 주사위 ${r}`);
         if (r <= 4 && mine[0]) wound(mine[0], true);
       }
       g.locs.colony.entrances.forEach((e) => { e.b = 0; }); OUTSIDE.forEach((l) => { g.locs[l].b = 0; });
       break;
-    case 'killer': placeZombies(g, 'hospital', 3, '위기 실패'); placeZombies(g, 'gas', 3, '위기 실패'); break;
     case 'despair': case 'fuelshort': case 'horror': changeMorale(g, -2); break;
-    case 'hordes': placeZombies(g, 'colony', 8, '위기 실패'); changeMorale(g, -1); break;
+    case 'hordes': zombies('colony', 8); changeMorale(g, -1); break;
     case 'starve': g.starvation++; changeMorale(g, -1); break;
-    case 'legions': placeZombies(g, 'colony', 12, '위기 실패'); break;
+    case 'legions': zombies('colony', 12); break;
     case 'blizzard': g.effects.push('눈보라: 다음 라운드 끝까지 이동 불가'); changeMorale(g, -1); break;
     case 'illness': Object.keys(g.survivors).forEach((id) => wound(id, false)); changeMorale(g, -1); break;
     case 'shaking':
-      for (let s = 0; s < 2; s++) { const mine = byInf(true).filter((id) => g.survivors[id] && g.survivors[id].owner === s && !g.survivors[id].leader); if (mine[0]) g.survivors[mine[0]].owner = 1 - s; }
+      for (let s = 0; s < 2; s++) { const mine = byInf(true).filter((id) => g.survivors[id].owner === s && !g.survivors[id].leader); if (mine[0]) g.survivors[mine[0]].owner = 1 - s; }
       changeMorale(g, -1); break;
     case 'raiders': for (const p of g.players) if (p.hand.length) g.removed.push(p.hand.splice(rnd(p.hand.length), 1)[0]); changeMorale(g, -1); break;
     case 'wastenot': { const f = g.removed.filter((c) => TPL[g.cards[c].t].kind === 'food'); g.removed = g.removed.filter((c) => !f.includes(c)); g.waste.push(...f); changeMorale(g, -1); break; }
-    case 'surge': placeZombies(g, 'colony', 6, '위기 실패'); OUTSIDE.forEach((l) => placeZombies(g, l, 1, '위기 실패')); break;
+    case 'surge': zombies('colony', 6); OUTSIDE.forEach((l) => zombies(l, 1)); break;
   }
 }
 
@@ -910,13 +890,12 @@ const featCtx = {
   objectiveProgress: (g) => checkObjective(g).progress,
 };
 function snapshotRound(g) {
-  if (!g.trace) g.trace = [];
   g.trace.push({ round: g.round, morale0: g.morale, crisis: g.crisis.id, x: FEAT.extract(g, { ...featCtx, startRounds: startRounds(g) }), crisis_result: null });
 }
 
 // 게임 한 판 → 라운드별 학습 행(JSONL 용)
 function exportRows(g, source, meta = {}) {
-  if (g.phase !== 'ended' || !g.trace) return [];
+  if (g.phase !== 'ended') return [];
   const T = g.trace;
   return T.map((t, i) => ({
     schema: FEAT.SCHEMA_VERSION, source, game_id: g.id, round_index: i, round: t.round,
@@ -944,16 +923,13 @@ function apply(g, seat, type, payload) {
 
 function viewFor(g, seat) {
   const v = clone(g);
-  v.you = seat;
-  const lastTrace = g.trace && g.trace[g.trace.length - 1];
+  const lastTrace = g.trace.at(-1);
   v.pred = g.phase === 'play' && lastTrace && lastTrace.pred ? { round: lastTrace.round, ...lastTrace.pred } : null;
   delete v.trace;
   v.objectiveAuto = checkObjective(g);
   // 덱 내용 숨기기(장수만)
   for (const id of OUTSIDE) { v.locs[id].deckCount = g.locs[id].deck.length; delete v.locs[id].deck; }
-  v.crisisDeckCount = g.crisisDeck.length; delete v.crisisDeck;
-  v.survivorDeckCount = g.survivorDeck.length; delete v.survivorDeck;
-  v.xrDeckCount = g.xrDeck.length; delete v.xrDeck;
+  for (const k of ['crisisDeck', 'survivorDeck', 'xrDeck']) { v[k + 'Count'] = g[k].length; delete v[k]; }
   v.players = g.players.map((p, i) => {
     const mine = i === seat;
     const showHand = mine || p.handOpen;
@@ -969,16 +945,12 @@ function viewFor(g, seat) {
     const canSee = g.xr.revealed || g.xr.by === seat;
     v.xr = { for: g.xr.for, by: g.xr.by, revealed: g.xr.revealed, chosen: g.xr.chosen, id: canSee ? g.xr.id : null };
   }
-  // 이 시점의 카드 정의는 공개 카드만 보내면 되지만, 단순화를 위해 템플릿 키만 전달
-  v.cards = g.cards;
   v.calc = {
-    colonyPop: colonyPop(g), colonyCap: LOC.colony.slots,
+    colonyPop: colonyPop(g),
     foodNeeded: foodNeeded(g), colonyZombiesNext: Math.ceil(colonyPop(g) / 2),
     wasteLoss: Math.floor(g.waste.length / (g.wastePer || 10)),
-    diceNext: [diceCount(g, 0), diceCount(g, 1)],
-    lowestColony: lowestInfluence(g, 'colony'),
   };
   return v;
 }
 
-module.exports = { DATA, newGame, setupGame, apply, viewFor, GameError, OBJ, checkObjective, exportRows, FEAT, TPL, SURV, LOC, CRISIS };
+module.exports = { DATA, newGame, setupGame, apply, viewFor, GameError, OBJ, checkObjective, exportRows, FEAT, TPL, SURV, LOC, CRISIS, survivorsAt, locOccupancy };

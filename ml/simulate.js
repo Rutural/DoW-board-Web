@@ -76,21 +76,20 @@ function simulate() {
 }
 
 async function demoToStore() {
-  const { openStore } = require('./store');
+  const { openStore, putRealGame } = require('./store');
   const { createModelServer } = require('./serving');
   const store = openStore(STORE);
   const models = createModelServer(store, { pollSeconds: 0, log: () => {} });
   await models.refresh();
-  const day = new Date().toISOString().slice(0, 10);
   let rows = 0;
   for (let i = 0; i < N; i++) {
     const { g } = playOne(`demo-s${SEED}-${String(i).padStart(5, '0')}`);
-    for (const t of g.trace) { const p = models.predictAll(t.x); t.pred = Object.keys(p).length ? p : null; }
+    for (const t of g.trace) t.pred = models.predictAll(t.x);
     const out = G.exportRows(g, 'real', { demo: true });
-    await store.put(`datasets/real/date=${day}/${g.id}.jsonl`, out.map((r) => JSON.stringify(r)).join('\n') + '\n');
+    await putRealGame(store, g, out);
     rows += out.length;
   }
-  console.log(`✔ 시연용 실제 게임 ${N}판 (${rows}행) → ${store.kind}:datasets/real/date=${day}/  예측 모델: ${Object.values(models.state.models).map((m) => m.version).join(', ') || '없음'}`);
+  console.log(`✔ 시연용 실제 게임 ${N}판 (${rows}행) → ${store.kind}:datasets/real/  예측 모델: ${Object.values(models.state.models).map((m) => m.version).join(', ') || '없음'}`);
 }
 
 if (STORE) demoToStore();

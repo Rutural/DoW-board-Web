@@ -3,7 +3,7 @@
 브라우저 두 개로 실제 화면을 조작하는 e2e 테스트.
 서버를 직접 띄우고(임시 저장 폴더), 끝나면 정리한다. 실패하면 종료 코드 1.
 
-준비: pip install playwright && python -m playwright install --with-deps chromium
+준비: pip install playwright -r ml/requirements.txt && python -m playwright install --with-deps chromium
 실행: python3 tests/e2e/run_e2e.py        (스크린샷: tests/e2e/shots/)
 """
 import asyncio
@@ -147,6 +147,12 @@ async def main():
             stop_server(srv); srv = start_server()
             await a.reload(); await a.wait_for_selector('.table-board', timeout=8000)
             check('탐색' in await a.inner_text('.log'), '서버 재시작 후 진행 상황 복원')
+
+            print('▶ 시나리오 6: 샘플 목표 → 샘플 트랙 조작')
+            await a.evaluate('localStorage.clear()'); await z.evaluate('localStorage.clear()')
+            _, t, o = await setup_two_players(a, z, 'samples')
+            await t.click('[data-a="track"][data-p*="samples"][data-p*="\\"d\\":1"]'); await t.wait_for_timeout(200)
+            check('1/8' in await o.inner_text('.supply-row'), '샘플 +1이 상대 화면에도 반영 (하드면 목표 8)')
             await b.close()
     finally:
         stop_server(srv)

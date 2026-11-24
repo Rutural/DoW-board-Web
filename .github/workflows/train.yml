@@ -41,11 +41,9 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4   # simulate.js·parity_check.js 실행용 (Node 내장 모듈만 써서 npm ci 불필요)
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

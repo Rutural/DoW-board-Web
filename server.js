@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 const SAVE_DIR = process.env.SAVE_DIR || path.join(__dirname, 'saves');
 const SAVE_FILE = path.join(SAVE_DIR, 'rooms.json');
 const UNDO_LIMIT = 40;
-const { openStore } = require('./ml/store');
+const { openStore, putRealGame } = require('./ml/store');
 const { createModelServer } = require('./ml/serving');
 const FEAT = require('./ml/features');
 
@@ -26,8 +26,7 @@ function annotatePredictions(room) {
   if (!g || !g.trace || !g.trace.length) return;
   const t = g.trace[g.trace.length - 1];
   if (t.pred !== undefined) return;
-  const p = models.predictAll(t.x);
-  t.pred = Object.keys(p).length ? p : null;
+  t.pred = models.predictAll(t.x);
 }
 
 // 실제 게임이 끝나면 라운드별 학습 행을 저장소에 올림 → 학습 파이프라인이 가져감
@@ -38,8 +37,7 @@ async function exportRealGame(room) {
   try {
     const rows = G.exportRows(g, 'real', { room: room.code });
     if (!rows.length) return;
-    const day = new Date().toISOString().slice(0, 10);
-    await store.put(`datasets/real/date=${day}/${g.id}.jsonl`, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+    await putRealGame(store, g, rows);
     console.log(`실제 게임 기록 저장: ${g.id} (${rows.length}행 → ${store.kind})`);
   } catch (e) { g.exported = false; console.error('게임 기록 저장 실패', e); }
 }
@@ -52,11 +50,11 @@ app.get('/data.json', (req, res) => res.json(G.DATA));
 // ── 모델 API ──
 app.get('/api/models', (req, res) => res.json(models.info()));
 app.post('/api/predict', (req, res) => {
-  const rows = Array.isArray(req.body && req.body.rows) ? req.body.rows : req.body && Array.isArray(req.body.x) ? [req.body.x] : null;
-  if (!rows || !rows.length || rows.length > 1000) return res.status(400).json({ error: 'x(특징값 배열) 또는 rows(배열의 배열, 최대 1000)를 보내세요.', feature_names: FEAT.FEATURE_NAMES });
-  if (rows.some((x) => !Array.isArray(x) || x.length !== FEAT.FEATURE_NAMES.length || !x.every(Number.isFinite))) return res.status(400).json({ error: `특징값은 숫자 ${FEAT.FEATURE_NAMES.length}개여야 합니다.` });
-  if (!Object.keys(models.state.models).length) return res.status(503).json({ error: '운영 중인 모델이 없습니다.' });
-  res.json({ predictions: rows.map((x) => models.predictAll(x)) });
+  const x = req.body && req.body.x;
+  if (!Array.isArray(x) || x.length !== FEAT.FEATURE_NAMES.length || !x.every(Number.isFinite)) return res.status(400).json({ error: `x는 숫자 ${FEAT.FEATURE_NAMES.length}개의 배열이어야 합니다.`, feature_names: FEAT.FEATURE_NAMES });
+  const p = models.predictAll(x);
+  if (!p) return res.status(503).json({ error: '운영 중인 모델이 없습니다.' });
+  res.json({ predictions: [p] });
 });
 app.post('/api/models/reload', async (req, res) => {
   if (!process.env.MODEL_RELOAD_TOKEN || req.get('x-reload-token') !== process.env.MODEL_RELOAD_TOKEN) return res.status(403).json({ error: '권한 없음' });

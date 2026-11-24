@@ -4,7 +4,7 @@
 공식 **2인 협력 변형**(공동목표 하드코어면, 비밀목표 없음, 시작 아이템 7장, 생존자 4명 중 3명, 비협력 카드 제외)을 기준으로 합니다.
 
 > 판정은 플레이어가 직접 하고, 이 도구는 **상태 관리 · 덱 · 비공개 정보 · 계산 보조**를 맡습니다.
-> 카드 데이터는 프로젝트의 `DoW-크로스드본판.pdf`(개인 번역 자료)에서 가져왔습니다. **지인끼리 쓰는 비공개 용도로만 사용하고, 저장소는 반드시 Private으로 두세요.**
+> 카드 데이터는 프로젝트의 `DoW-크로스드본판.pdf`(개인 번역 자료)에서 가져왔습니다. 카드·보드 그림도 원작 저작물이므로 **지인끼리 쓰는 비공개 용도로만 사용하고, 저장소는 반드시 Private으로 두며 사이트 주소를 공개 게시하지 마세요.**
 
 ## 이미지 (실물 보드·카드)
 
@@ -15,8 +15,6 @@
 - 매핑: `data/images.json`, 장소별 아이템 덱(카드마다 고유 그림): `data/item_cards.json`
 - 다시 만들기: 이미지 ZIP(공용 + 본판 카드)을 한 폴더에 풀고
   `pip install pillow numpy && python3 tools/build_assets.py <푼 폴더> <데드오브윈터_1_본판_데이터.json>`
-
-⚠ 카드·보드 그림은 원작 저작물입니다. 지인끼리 쓰는 비공개 사이트로만 운영하고, 주소를 공개 게시하지 마세요.
 
 ## 할 수 있는 것
 
@@ -46,10 +44,6 @@ npm start            # http://localhost:3000
 > 지금 운영 중인 서비스: **https://dow.eta.pyhub.kr** (Lightsail + Docker + GitHub Actions CI/CD, 아래 [CI/CD](#cicd-github-actions--lightsail) 참고)
 > 작업 내용·진행 과정·결과 전체 정리는 [`프로젝트_정리.md`](프로젝트_정리.md)에 있습니다.
 
-## 배포 (Amazon Lightsail)
-
-Docker 컨테이너로 돌리고 GitHub Actions가 테스트 → 이미지 빌드 → 배포 → 롤백까지 자동으로 처리합니다. 서버는 항상 켜져 있고 방 저장도 유지됩니다. 설정 방법은 아래 [CI/CD](#cicd-github-actions--lightsail)의 "처음 한 번 설정"을 따르세요.
-
 ## 환경 변수
 
 | 이름 | 기본값 | 설명 |
@@ -60,9 +54,9 @@ Docker 컨테이너로 돌리고 GitHub Actions가 테스트 → 이미지 빌�
 | `DOW_STORE` | `SAVE_DIR/store` | 모델·데이터 저장소 (로컬 폴더 또는 `s3://버킷/접두사`) |
 | `S3_ENDPOINT` | (없음) | S3 호환 저장소 주소를 직접 지정할 때 (로컬 테스트용 moto/MinIO 등) |
 | `MODEL_POLL_S` | 60 | 레지스트리 확인 주기(초) |
-| `AWS_REGION` | (없음) | 버킷 리전 (예: 시드니 `ap-southeast-2`) |
+| `AWS_REGION` | `ap-northeast-2` | 버킷 리전 (시드니 버킷이면 `ap-southeast-2`로 지정해야 함) |
 | `MODEL_RELOAD_TOKEN` | (없음) | 지정하면 `POST /api/models/reload`(헤더 `x-reload-token`)로 즉시 모델 다시 읽기 |
-| `GIT_SHA` | `dev` | `/healthz`에 표시할 코드 버전 (배포 스크립트가 커밋 sha로 넣음) |
+| `GIT_SHA` | `dev` | `/healthz`에 표시할 코드 버전 (CI가 이미지를 빌드할 때 커밋 sha로 넣고, 배포 헬스체크가 이미지 태그와 비교) |
 
 Lightsail에서는 이 값들을 서버의 `/opt/dow/env`에 적습니다. **파일을 고친 뒤에는 `docker restart`가 아니라 재배포해야 적용됩니다**(`/opt/dow/deploy.sh "$(cat /opt/dow/current)"`). `docker restart`는 env 파일을 다시 읽지 않습니다.
 
@@ -109,9 +103,8 @@ Dockerfile         서버 이미지
 - 특징값 정의: `ml/features.js` — 학습과 서빙이 이 파일 하나를 함께 씀(parity 기준)
 - **시뮬레이션 데이터:** `node ml/simulate.js --games 5000 --seed 7` → `datasets/sim/<run_id>/rows.jsonl` + `manifest.json`
   (시드, 엔진·특징·봇 버전 해시, 판 수, 라벨 통계, 파일 sha256 기록 → 같은 시드면 같은 데이터)
-- **실제 게임 데이터:** 판이 끝나면 서버가 `saves/datasets/real/date=YYYY-MM-DD/<game_id>.jsonl`로 저장 (같은 형식, `source: "real"`)
+- **실제 게임 데이터:** 판이 끝나면 서버가 저장소(`DOW_STORE`, 기본 `saves/store`)의 `datasets/real/date=YYYY-MM-DD/<game_id>.jsonl`로 저장 (같은 형식, `source: "real"`)
 - 봇: `ml/bot.js` (규칙 기반, skill 0.55~1로 실력 차를 둠). 크로스로드 효과는 아직 시뮬레이션하지 않음 → 실제 게임과의 차이(드리프트) 요인
-- 엔진 보강: 위기 실패 효과 자동 적용 버튼, 침입 사망 자동 처리, 공동목표 자동 판정(참고 표시)
 
 ## 테스트
 
@@ -167,7 +160,6 @@ PR / push ─▶ 단위·통합 테스트 ─┬─▶ 브라우저 e2e ─┐
 - **교체 순서:** 기존 컨테이너를 정상 종료(진행 중인 방을 `saves/`에 저장) → 새 컨테이너 시작(방 복원) → `/healthz`의 버전이 새 커밋과 같은지 확인. 교체 중 몇 초 끊깁니다. 두 서버가 같은 저장 파일을 동시에 쓰지 않도록 일부러 블루/그린 방식을 쓰지 않았습니다.
 - **자동 롤백:** 헬스체크가 60초 안에 통과하지 못하면 직전 이미지로 다시 띄웁니다. 이미지를 받지 못했고 서버에도 없으면 기존 서비스를 건드리지 않고 멈춥니다.
 - **수동 롤백:** Actions → Rollback(target=code), 또는 서버에서 `/opt/dow/rollback.sh`(직전 버전), `/opt/dow/rollback.sh <이미지:태그>`(지정 버전). 다시 실행하면 롤백이 취소됩니다. 지금 버전을 넘기면 "이미 … 버전입니다"만 출력하고 아무것도 하지 않습니다.
-- **같은 버전 다시 띄우기**(env를 고친 뒤 등): `/opt/dow/deploy.sh "$(cat /opt/dow/current)"`
 - **기록:** `/opt/dow/current`, `/opt/dow/previous`, `/opt/dow/deploys.log`
 - 진행 중인 방과 실제 게임 학습 기록(`saves/`)은 서버의 `/opt/dow/saves`에 남아 배포·롤백과 무관하게 유지됩니다.
 
@@ -192,11 +184,9 @@ PR / push ─▶ 단위·통합 테스트 ─┬─▶ 브라우저 e2e ─┐
 
 | 무엇 | 어디 |
 |---|---|
-| 특징값 정의 (학습·서빙 공용) | `ml/features.js` |
 | 파이프라인 | `ml/pipeline/` (`run.py` 실행, `gate.py`, `registry.py`, `monitor.py`, `data.py`, `model.py`, `store.py`) |
 | 서빙 | `ml/serving.js`, 서버의 `/api/predict` |
 | 시연용 실제 게임 대역 | `ml/simulate.js --store` (행에 `demo: true`) |
-| 테스트 | `python -m pytest ml/tests` (게이트 엣지 케이스, 레지스트리, 데이터 검증, 전체 흐름) |
 
 ### 로컬에서 한 바퀴 돌려 보기
 
@@ -218,12 +208,11 @@ python3 -m ml.pipeline.registry --store saves/store rollback --task y_crisis   #
 1. Lightsail 콘솔 → **스토리지 → 버킷 생성** (인스턴스와 같은 리전, 예: 시드니)
 2. 버킷 → **권한 → 리소스 액세스**에서 인스턴스를 연결합니다. 이렇게 하면 **서버에는 키를 두지 않아도** 됩니다(인스턴스 자격 증명 사용).
 3. 버킷 → **권한 → 액세스 키 → 액세스 키 생성** (GitHub Actions 학습용. 키 ID와 비밀 키는 이때만 보이니 보관)
-4. **서버:** `/opt/dow/env`를 아래처럼 쓰고 재배포로 적용합니다(`docker restart`로는 적용되지 않음).
+4. **서버:** `/opt/dow/env`를 아래처럼 쓰고 재배포로 적용합니다.
    ```bash
    cat > /opt/dow/env <<'ENV'
    DOW_STORE=s3://<버킷이름>/dow
    AWS_REGION=ap-southeast-2
-   MODEL_POLL_S=60
    ENV
    chmod 600 /opt/dow/env
    /opt/dow/deploy.sh "$(cat /opt/dow/current)"
@@ -254,8 +243,6 @@ curl http://127.0.0.1:3950/healthz      # models에 방금 학습한 버전이 �
 
 ### 모델 롤백
 
-코드(서버) 롤백은 위 [배포 방식과 롤백](#배포-방식과-롤백)을 참고하세요.
-
 - 방법: Actions → Rollback(target=model), 또는 `python -m ml.pipeline.registry --store … rollback --task …`. 서버가 다음 확인 주기(기본 60초)에 자동으로 적용합니다.
 - 모델 롤백은 과제별로 따로 됩니다(`y_crisis`만 되돌리면 `y_collapse`는 그대로).
 - **승격이 두 번 이상 있어야 롤백할 수 있습니다.** 되돌아갈 `archived` 모델이 없으면 "되돌릴 이전 모델이 없습니다"로 실패합니다. 차단(rejected)된 실행은 운영 모델을 바꾸지 않으므로 롤백 대상이 생기지 않습니다.
@@ -267,5 +254,3 @@ curl http://127.0.0.1:3950/healthz      # models에 방금 학습한 버전이 �
 
 - 봇 승률이 3.6%로 사람보다 많이 약해서 "최종 승리" 예측은 아직 하지 않습니다(위기 성공·붕괴 위험 두 과제만).
 - 시뮬레이션은 크로스로드 효과를 처리하지 않아 실제 게임과 분포가 다릅니다. 이 차이는 모니터링의 PSI로 드러나도록 해 두었습니다.
-- 실제 게임이 쌓이기 전까지는 게이트의 "실제 게임 검증" 항목이 건너뛰어집니다(100행 이상부터 비교). 실제 성능 모니터링은 예측이 기록된 실제 라운드 20개부터 계산됩니다.
-- 배포는 무중단이 아닙니다. 방 저장 파일 충돌을 피하려고 정상 종료 → 교체 방식을 써서 몇 초 끊깁니다.

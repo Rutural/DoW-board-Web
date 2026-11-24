@@ -30,7 +30,6 @@ if [[ ! -f "$DOW_HOME/env" ]]; then
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
 # AWS_REGION=ap-southeast-2
-MODEL_POLL_S=60
 ENV
   chmod 600 "$DOW_HOME/env"
 fi

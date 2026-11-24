@@ -7,7 +7,9 @@ const { OUTSIDE, critical: isCritical } = require('./features');
 const BOT_VERSION = 'heuristic-4';
 
 function makeBot(G, { skill = 1, rand = Math.random } = {}) {
-  const { TPL, SURV, LOC, CRISIS } = G;
+  const { TPL, SURV, LOC, CRISIS, survivorsAt: at, locOccupancy: occ } = G;
+  const KO = G.DATA.game.kinds;
+  const { entrances: NE, entranceSlots: ES } = LOC.colony; // 피난기지 입구 수, 입구당 칸 수
   const act = (g, s, type, p) => { try { G.apply(g, s, type, p || {}); return true; } catch (e) { if (e instanceof G.GameError) return false; throw e; } };
   const alive = (g) => g.phase === 'play';
   const maybe = () => rand() < skill;
@@ -38,9 +40,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
   }
   function anyDie(g, s) { const d = dice(g, s).sort((a, b) => a.v - b.v)[0]; return d ? act(g, s, 'dice.use', { i: d.i }) : false; }
   const mine = (g, s) => Object.keys(g.survivors).filter((id) => g.survivors[id].owner === s);
-  const at = (g, loc) => Object.keys(g.survivors).filter((id) => g.survivors[id].loc === loc);
   const zAt = (g, loc) => (loc === 'colony' ? g.locs.colony.entrances.reduce((a, e) => a + e.z, 0) : g.locs[loc].z);
-  const occ = (g, loc) => at(g, loc).length + (loc === 'colony' ? g.helpless : 0);
 
   // 다음 피난기지 단계에 이 장소에 추가될 좀비 수
   function nextAdds(g, loc) {
@@ -50,7 +50,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
   // 침입 위험이 있는 피난기지 입구 번호들 (좀비는 입구 1부터 차례로 들어온다)
   function riskyEntrances(g) {
     const adds = nextAdds(g, 'colony'); const es = g.locs.colony.entrances; const out = [];
-    for (let i = 0; i < 6; i++) { const inc = Math.floor(adds / 6) + (i < adds % 6 ? 1 : 0); if (inc && es[i].z + inc > 3) out.push(i); }
+    for (let i = 0; i < NE; i++) { const inc = Math.floor(adds / NE) + (i < adds % NE ? 1 : 0); if (inc && es[i].z + inc > ES) out.push(i); }
     return out;
   }
   function outsideRisk(g, loc) { const l = g.locs[loc]; return l.z + nextAdds(g, loc) - (LOC[loc].entranceSlots - l.b); }
@@ -195,7 +195,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
       if (sv.loc === 'colony' && outsideMine < 2 && SURV[id].srch <= 4 && (!sv.leader || mine(g, s).length === 1) && maybe()) {
         const foodPlace = { grocery: 2, school: 1.5, library: 0.5, hospital: 0.5, police: 0.3, gas: 0.3 };
         const need = crisisNeed(g);
-        const fit = (l) => (foodLow(g) ? foodPlace[l] * 2 : 0) + (need.some((k) => LOC[l].symbols.split('>')[0].includes({ food: '식량', fuel: '연료', medicine: '약', tool: '도구' }[k])) ? 1.5 : 0);
+        const fit = (l) => (foodLow(g) ? foodPlace[l] * 2 : 0) + (need.some((k) => LOC[l].symbols.split('>')[0].includes(KO[k])) ? 1.5 : 0);
         const dest = OUTSIDE.filter((l) => g.locs[l].deck.length > 0 && occ(g, l) < LOC[l].slots && outsideRisk(g, l) < 0)
           .sort((a, b) => (g.locs[a].z - g.locs[b].z) * 0.7 - (fit(a) - fit(b)) + (o === 'raid' ? (g.locs[a].deck.length - g.locs[b].deck.length) * 0.2 : 0) + (rand() - 0.5))[0];
         if (dest) { moveTo(g, s, id, dest); handlePending(g, s); }
@@ -221,7 +221,7 @@ function makeBot(G, { skill = 1, rand = Math.random } = {}) {
       const outLoc = mine(g, s).map((x) => g.survivors[x].loc).find((l) => l !== 'colony' && g.locs[l].z + g.locs[l].b < LOC[l].entranceSlots && (o === 'home' ? g.locs[l].b < 1 : outsideRisk(g, l) >= -1));
       const es = g.locs.colony.entrances;
       const adds = nextAdds(g, 'colony');
-      const ent = [...Array(6).keys()].filter((i) => es[i].z + es[i].b < 3).sort((a, b) => ((a < adds ? 0 : 10) + es[a].b) - ((b < adds ? 0 : 10) + es[b].b))[0];
+      const ent = [...Array(NE).keys()].filter((i) => es[i].z + es[i].b < ES).sort((a, b) => ((a < adds ? 0 : 10) + es[a].b) - ((b < adds ? 0 : 10) + es[b].b))[0];
       const ok = outLoc && rand() < 0.5 ? act(g, s, 'barricade', { loc: outLoc, d: 1 }) : ent != null && act(g, s, 'barricade', { loc: 'colony', d: 1, entrance: ent });
       anyDie(g, s);
       if (!ok && !dice(g, s).length) break;

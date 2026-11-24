@@ -20,7 +20,6 @@ cat > /opt/dow/env <<'ENV'
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
 AWS_REGION=ap-southeast-2
-MODEL_POLL_S=60
 ENV
 chown ec2-user:ec2-user /opt/dow/env
 chmod 600 /opt/dow/env

@@ -8,8 +8,10 @@ const NEED_KINDS = ['food', 'fuel', 'medicine', 'tool'];
 const OBJECTIVES = ['winter', 'weeks', 'stockpile', 'home', 'kill', 'mouths', 'raid', 'leave', 'cure', 'samples'];
 const OUTSIDE = ['police', 'grocery', 'school', 'library', 'hospital', 'gas'];
 
+// 부상+동상이 이만큼이면 사망 (엔진의 사망 판정과 같은 기준)
+const maxWounds = (sv) => sv.maxWounds || 3;
 // 다음 상처 하나로 죽는 상태 (봇의 치료·귀환 판단에도 같은 기준을 쓴다)
-const critical = (s, sv) => s.wounds + s.frost >= (sv.maxWounds || 3) - 1;
+const critical = (s, sv) => s.wounds + s.frost >= maxWounds(sv) - 1;
 
 const FEATURE_NAMES = [
   'rounds_left', 'rounds_played', 'morale', 'food', 'starvation', 'helpless',
@@ -56,7 +58,7 @@ function extract(g, ctx) {
     food_deficit: Math.max(0, foodNeeded - g.food),
     colony_zombies: ents.reduce((a, e) => a + e.z, 0),
     colony_barricades: ents.reduce((a, e) => a + e.b, 0),
-    colony_entrance_free: ents.reduce((a, e) => a + (3 - e.z - e.b), 0),
+    colony_entrance_free: ents.reduce((a, e) => a + (LOC.colony.entranceSlots - e.z - e.b), 0),
     outside_zombies: OUTSIDE.reduce((a, l) => a + g.locs[l].z, 0),
     outside_barricades: OUTSIDE.reduce((a, l) => a + g.locs[l].b, 0),
     outside_noise: OUTSIDE.reduce((a, l) => a + g.locs[l].noise, 0),
@@ -87,4 +89,4 @@ function extract(g, ctx) {
   return FEATURE_NAMES.map((n) => +f[n].toFixed(4));
 }
 
-module.exports = { SCHEMA_VERSION, FEATURE_NAMES, OUTSIDE, critical, extract };
+module.exports = { SCHEMA_VERSION, FEATURE_NAMES, OUTSIDE, maxWounds, critical, extract };
